@@ -1,0 +1,8 @@
+# Normalize line endings for reproducibility across machines (docs/25 §5).
+* text=auto eol=lf
+
+# The git hook is executed by sh — it MUST stay LF regardless of platform.
+scripts/hooks/* text eol=lf
+
+# Windows-native scripts are fine as LF in pwsh; keep them normalized too.
+*.ps1 text eol=lf
