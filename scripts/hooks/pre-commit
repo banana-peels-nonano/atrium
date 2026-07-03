@@ -1,0 +1,24 @@
+#!/bin/sh
+# Charter House pre-commit hook (committed copy; installed to .git/hooks by
+# scripts/install-hooks.ps1). Fast, deterministic gates that must hold on every commit:
+#   - block local-only PII sidecars (*.private.md) and real .env files (INV-PII-4, gate 7)
+#   - deterministic secret scan on staged files (gate 6)
+# The full 10-gate suite runs via scripts/ci.ps1 before merge to main.
+
+set -e
+
+# Prefer the project venv python; fall back to system python.
+if [ -x ".venv/Scripts/python.exe" ]; then
+    PY=".venv/Scripts/python.exe"
+elif [ -x ".venv/bin/python" ]; then
+    PY=".venv/bin/python"
+else
+    PY="python"
+fi
+
+"$PY" scripts/secret_scan.py || {
+    echo "pre-commit: secret/PII scan blocked this commit." >&2
+    exit 1
+}
+
+exit 0

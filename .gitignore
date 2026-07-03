@@ -1,0 +1,25 @@
+# Secrets — never committed
+.env
+.env.*
+!.env.example
+
+# Local-only PII sidecars (INV-PII-4) — never embedded, logged, or pushed
+**/*.private.md
+
+# Python
+**/__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Shared K: locations (external to the repo; caches/tools/models/data live here)
+# Listed defensively in case a path is ever created under the repo by mistake.
+Models/
+Data/
+Logs/
+
+# OS / editor cruft
+Thumbs.db
+.DS_Store
