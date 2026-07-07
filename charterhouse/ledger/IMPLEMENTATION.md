@@ -93,3 +93,24 @@ No path silently drops, edits, or reorders an event.
 - **Q: What is `WorldState`?** **RESOLVED —** the replay output feeding the Registry projection: per-venture
   records (docs/42 §6) + slot/lineage/clock accounting inputs. Its typed shape lives in `charterhouse/contracts/`
   and is the seam the Registry (same subsystem) reads. No business *rules* live in replay — only reconstruction.
+
+## 7. Implementation decisions (recorded at build, tests-first)
+- **Shared IF-1 types created here:** `charterhouse/contracts/events.py` (`Event` envelope, `EventType`
+  vocabulary, error taxonomy, `AUTHORIZATION_REQUIRED`/`ONCE_PER_LINEAGE` sets) and
+  `contracts/state.py` (`State`, `Venture`, `WorldState`) — the frozen seam consumers build against.
+- **`AUTHORIZATION_REQUIRED` set:** the event types unconditionally annotated (gate)/(RED) in docs/41 §2 —
+  `admit, spec_approved, spend_envelope, send_batch, deploy_prod, billing_enable, launch`. `transition`
+  is **excluded**: it spans both gate and internal transitions (docs/42 §3), so its authorization
+  requirement is per-`(from,to)` (S6's classification), not knowable from the type alone. The Ledger
+  validates *presence* only when the type requires it.
+- **Commit marker:** the trailing `\n` marks a committed record. A record with no terminating newline is a
+  torn (interrupted) append → never visible on read (R1). A newline-terminated record that fails to parse
+  or whose `prev_hash` does not link is tampering → read/replay raise (R2).
+- **Hash over exact on-disk bytes:** `prev_hash = sha256(previous record's canonical on-disk bytes)`, never
+  a re-serialization — avoids float-repr ambiguity for `cost_usd`/`amount_usd`/`latency_ms`. Files are
+  written in **binary** so bytes are byte-identical across platforms.
+- **Physical layout:** a single active JSONL segment (`segment-00001.jsonl`); total order comes from the
+  monotonic ULID `event_id`, so future segmentation never affects order.
+- **Lineage for caps:** modelled as the event `venture_id` (single-operator, docs/32). S5 enforces the
+  guard on top; the Ledger's replay-check flags a second `omw_grant`/`pivot_fork` for the same lineage.
+- **`codename`:** taken from the `capture` payload (`codename`), defaulting to the `venture_id` when absent.

@@ -16,8 +16,12 @@ Owner: A3 Ledger/Registry Agent   (written BEFORE implementation)
 ## Integration tests
 | Test | Partner | Scenario | Expected |
 |---|---|---|---|
-| `it_lifecycle_reads_current_state` | A4 Lifecycle (stub, docs/40 §3) | append a `transition`, then `Registry.get(v)` | reflects the new state; matches `replay()` |
-| `it_pipeline_view_from_registry` | A13 Projections (stub) | build a PIPELINE board from `query()` | board equals a direct replay-derived board |
+| `test_it_lifecycle_transition_replays` | A4 Lifecycle (stub, docs/40 §3) | append a `transition`, then `Registry.get(v)` | reflects the new state; matches `replay()` |
+| _(pipeline view deferred)_ | A13 Projections (stub) | build a PIPELINE board from `query()` | board equals a direct replay-derived board — lands with A13 |
+
+> The lifecycle-reads-current-state scenario is realized by the shared S4 integration test
+> `test_it_lifecycle_transition_replays` (in `tests/integration/`). The PIPELINE-view scenario is
+> deferred to A13 Projections (its stub does not exist on this branch).
 
 ## Invariant coverage table
 | INV / MUST | Test name | Tier |

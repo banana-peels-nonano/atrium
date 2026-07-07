@@ -11,6 +11,7 @@ Owner: A3 Ledger/Registry Agent   (written BEFORE implementation)
 | `test_tamper_detected_on_read` | mutating a historical record → chain break raised on read; replay refuses | tmp ledger | **tamper detection** (docs/54 §S4) |
 | `test_replay_deterministic_state` (property) | for arbitrary legal event sequences, `replay()` == expected world state; re-running is identical | generated sequences | **`INV-LEDGER`** |
 | `test_replay_refuses_broken_chain` | a broken chain → `replay` raises, returns no partial state | corrupted fixture | fail-closed |
+| `test_replay_refuses_venture_without_state` | a venture with events but no state-setting event (no `capture`/transition) → `replay` raises a defined `ProjectionError` naming the venture, not a bare `ValueError` | tmp ledger | fail-closed projection |
 | `test_reject_raw_pii_payload` | a payload with structural PII/secret → append rejected; field named | PII corpus (A11) | **`INV-PII-1`** (defense in depth) |
 | `test_reject_gate_event_without_token` | a gate/RED-typed event missing `authorization` → append rejected | fixture | docs/41 §4.2 |
 | `test_reject_unknown_event_type` | a `type` not in the frozen catalog → append rejected | fixture | catalog integrity |
@@ -21,9 +22,11 @@ Owner: A3 Ledger/Registry Agent   (written BEFORE implementation)
 ## Integration tests
 | Test | Partner | Scenario | Expected ledger/state |
 |---|---|---|---|
-| `it_lifecycle_transition_replays` | A4 Lifecycle (stub against docs/40 §3) | a `transition` event appended → `replay()` reproduces the venture's new state | `Registry == replay()` after the transition |
-| `it_snapshot_restore_replay_identical` | ops / A1 paths | `snapshot()` → mutate → `restore()` → `replay()` | byte-identical registry state (docs/54 §S4) |
-| `it_telemetry_llm_call_event` | A11 Telemetry (docs/40 §10) | `Telemetry.record(...)` → `append(llm_call)` | an `llm_call` event present, no secrets/PII in payload |
+| `test_it_lifecycle_transition_replays` | A4 Lifecycle (stub against docs/40 §3) | a `transition` event appended → `replay()` reproduces the venture's new state | `Registry == replay()` after the transition |
+| `test_it_snapshot_restore_replay_identical` | ops / A1 paths | `snapshot()` → mutate → `restore()` → `replay()` | byte-identical registry state (docs/54 §S4) |
+| `test_it_telemetry_llm_call_event` | A11 Telemetry (docs/40 §10) | `Telemetry.record(...)` → `append(llm_call)` | an `llm_call` event present, no secrets/PII in payload |
+
+> Integration tests carry a `test_it_` prefix so pytest collects them (the `it_` intent is preserved in the name).
 
 ## Invariant coverage table
 | INV / MUST | Test name | Tier |

@@ -26,10 +26,14 @@ byte-reproducible from `replay()`.
   `id, codename, state, score, forked_from?, state_entered_at, experiment_live_at?, active_time_accum,
   omw_granted?(bool), evidence_ttl_at?, artifact_links[], event_stream_ptr`. This `Venture` type lives in
   `charterhouse/contracts/` (docs/43 §6), shared with S5/S12.
-- Modules: `projection` (fold `WorldState` → venture records — invoked via `Ledger.replay()`), `index`
-  (optional in-memory index by id and by state for `query`), `facade` (the `Registry.get/query` API).
-- **Cache discipline:** the index is a derived accelerator. On any doubt (chain break, cold start) it
-  rebuilds from `replay()`. It is never persisted as truth.
+- Modules (as built): `facade` (the `Registry.get/query` API). The event→`Venture` **fold** is owned by
+  `Ledger.replay()` (docs/40 §2; `WorldState` already carries the projected `Venture` records), so the
+  Registry consumes that rather than re-implementing the projection — keeping a single source of the fold and
+  guaranteeing `Registry == replay()`. A separate `index`/`projection` module was folded into this consume
+  path; it can be reintroduced as a pure accelerator over `replay()` if query volume ever needs it.
+- **Cache discipline:** `get`/`query` build a fresh view from `replay()` on **every** call, so the Registry
+  can never serve stale or independently-mutated state (it is never persisted as truth). Any future index is
+  a derived accelerator that, on any doubt (chain break, cold start), rebuilds from `replay()`.
 
 ## 4. Dependencies
 - **Consumes:** `Ledger.replay()` / `Ledger.read()` (same subsystem, docs/40 §2). No external subsystem API.

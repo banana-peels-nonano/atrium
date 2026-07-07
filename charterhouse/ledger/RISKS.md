@@ -21,6 +21,21 @@ Owner: A3 Ledger/Registry Agent
   new event types (e.g. future memory events) land without reopening IF-1 — directly serving priority #4.
 - Shared types (`Event`, `WorldState`, `State`, event-type enum) live once in `charterhouse/contracts/` (docs/43 §6).
 
+## Known limitation (recorded consciously, not silent)
+- **Tail-tamper on the last record:** a backward `prev_hash` chain cannot detect tampering of the
+  *most recent* event, because no successor record holds its hash. The tamper/broken-chain tests mutate a
+  *historical* (interior) record, which is always detected. Closing the tail gap fully requires a head-hash
+  persisted in the snapshot (or a signed HEAD marker); this is deferred and in scope only if a threat model
+  later demands it (R2 covers interior tampering, which is the realistic corruption/edit case here).
+- **Lineage caps keyed on `venture_id`, not the fork chain:** replay flags a second `omw_grant`/`pivot_fork`
+  for the *same* `venture_id`, but does not yet walk `forked_from` to catch a second fork across a lineage
+  (`pivot_fork(v)` then `pivot_fork(v-fork)`). S5 Lifecycle is the real guard (docs/42 §5); the replay-check
+  is a same-lineage backstop. Accepted as documented (Finding 2); full fork-chain enforcement is a later add.
+- **`restore` is not crash-atomic (hardening pass):** `restore()` unlinks the current segments and then
+  copies the snapshot in; a crash in that window loses the current log. Single-writer solo operation makes
+  this low-stakes, but the hardening pass should stage into a temp dir and atomically swap (copy-then-rename),
+  and dir-fsync new segments. Accepted as documented (Finding 3).
+
 ## Assumptions
 - Upstream redaction (S7 at CHECKPOINT) has already removed PII before `append`; the structural pre-check is
   defense-in-depth, not the primary redactor (docs/24).

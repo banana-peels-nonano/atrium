@@ -17,6 +17,9 @@ Legend — actions: `START` · `CONTRACTS-CLEARED` · `MERGED` · `PHASE-EXIT` �
 | 2026-07-04 | 1–2 | A3 Ledger/Registry (S4) | INTERFACE-FREEZE | **IF-1 frozen** (docs/52 §12): common envelope (docs/41 §1, verbatim in ledger/API.md) + event-type vocabulary (docs/41 §2) + `Ledger.append/read/replay/snapshot/restore` + `Registry.get/query`. **Unlocks A4 Lifecycle, A5 Governance/Security, A7 Memory.** Evolution: additive event types/fields = versioned no-bump; remove/rename/envelope-change = ICR (docs/43 §4). |
 | 2026-07-04 | 1–2 | A2 Config (S3) | INTERFACE-FREEZE | **IF-2 (Config half) frozen**: `Config.get_route/get_model/get_provider/profile/budgets` + shared types Route/Model/Provider/Budgets (docs/40 §1). Router `LLMClient` half of IF-2 pending A6. **Unlocks A1 preflight, A6 Router (Config side).** |
 | 2026-07-04 | 1–2 | A11 Logging/Test (S14+S15) | INTERFACE-FREEZE | Harness surface frozen: `Log.event`/`Telemetry.record` + fake signatures (InMemoryLedger == Ledger docs/40 §2) + invariant-manifest shape. Simulator shape-only (body deferred to S4/S5/S10/S12). |
+| 2026-07-06 | 1–2 | A3 Ledger/Registry (S4) | START | `main` at Wave-0 contracts (0b72eb3). Branch `feat/a3-ledger`, tests-first per docs/70 §5. |
+| 2026-07-06 | 1–2 | A3 Ledger/Registry (S4) | (impl, pre-gate) | Tests-first green: 122 S4 tests (60+40 property seeds) — INV-LEDGER replay==state, atomic+totally-ordered append, hash-chain tamper→fail-closed, snapshot→restore byte-identical, PII/token/type/cap/schema rejects. Built the frozen IF-1 shared types in `charterhouse/contracts/` (`events.py`, `state.py`) + `ledger/{store,ulid}.py` + `registry/facade.py`. Import-DAG + secret scan clean by hand (gates 5/10 still placeholders). Full CI green (229 tests). Docs synced (62). **HALT at merge gate — awaiting founder review before merge to `main`.** |
+| 2026-07-07 | 1–2 | A3 Ledger/Registry (S4) | MERGED | Founder-reviewed at the gate. Review fix: replay now fails closed with `ProjectionError` (naming the venture) for a state-less venture instead of a bare `ValueError` (test-first). Findings 2 (lineage cap keyed on `venture_id`) + 3 (non-atomic `restore`) accepted as documented for the hardening pass (ledger/RISKS.md). Squash-merged `feat/a3-ledger`; **123 S4 tests green, main CI green**. **S4 is real** → A4 Lifecycle, A5 Governance/Security, A7 Memory unblocked against the live Ledger/Registry + IF-1. |
 
 ---
 
@@ -31,8 +34,9 @@ _None._
 - Pending: IF-2 (Router `LLMClient` half), IF-3 (Security redact/scan/tag), IF-4 (Lifecycle transition API), IF-5 (Workflow runner). See docs/43 §3.
 
 ## Current phase
-**Phase 1–2 — Wave 0 implementation stage (CLEARED).** A1, A2, A3 (Ledger+Registry), A11 are cleared to
-implement **tests-first** (docs/70 §5): write each `TESTPLAN.md` test, then implement to satisfy the `54`
-acceptance rows + owned invariants, keeping docs in sync (docs/62), then open a PR against the 10 merge gates
-(docs/63). IF-1 is frozen → A4/A5/A7 may begin their contract stage against Ledger stubs when scheduled.
-Next halt: first Wave-0 merge gate, for founder review.
+**Phase 1–2 — Wave 0 implementation stage (CLEARED).** **A3 Ledger/Registry (S4) is MERGED to `main`**
+(first Wave-0 subsystem shipped; main always-green). A1 (Environment/S2), A2 (Config/S3), A11 (Logging/Test)
+remain cleared to implement **tests-first** (docs/70 §5): write each `TESTPLAN.md` test, then implement to
+satisfy the `54` acceptance rows + owned invariants, keeping docs in sync (docs/62), then open a PR against
+the 10 merge gates (docs/63). IF-1 is frozen and now backed by real code → A4 Lifecycle, A5
+Governance/Security, A7 Memory may begin against the live Ledger/Registry when scheduled.
