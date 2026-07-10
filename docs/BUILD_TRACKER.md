@@ -24,6 +24,7 @@ Legend — actions: `START` · `CONTRACTS-CLEARED` · `MERGED` · `PHASE-EXIT` �
 | 2026-07-07 | 1–2 | A5 Governance/Security (S6+S7) | CONTRACTS-CLEARED | S6+S7 contract docs (API/TESTPLAN/IMPLEMENTATION/RISKS per subsystem, 94ed2cf) written and self-cleared in **auto mode via consistency-checks** — no separate founder-clearance gate ran (unlike Wave 0); founder review deferred to the merge gate (see MERGED row when recorded). Tests-first written same day — red for the right reason (b8aeafe, docs/70 §5). |
 | 2026-07-07 | 1–2 | A5 Governance/Security (S6+S7) | INTERFACE-FREEZE | **IF-3 frozen** (docs/52 §12, docs/43 §3): Governance `classify/authorize/envelope_open/spend/send_budget_remaining` (governance/API.md) + Security `redact/scan/tag` signatures with the `Context.contains_pii` cloud-route guard (security/API.md, docs/40 §4). **Unlocks A6 Router pii-path (S8 enforcement of INV-PII-3), A7 Memory.** |
 | 2026-07-09 | 1–2 | A5 Governance/Security (S6+S7) | (impl, pre-gate) | Implementation green (eb9c67c): S6 classify/envelope/tokens/send-budget + facade; S7 redact → independent scan → fail-closed CHECKPOINT (INV-PII-1/2), tag + `cloud_route_allowed` guard (INV-PII-3), `CheckpointError` names finding kinds only — never values. Full CI green (**324 tests**). **HALT at merge gate — awaiting founder review before merge to `main`.** |
+| 2026-07-10 | 1–2 | A5 Governance/Security (S6+S7) | MERGED | Founder-reviewed at the gate (security/tag.py INV-PII-3 guard + security/checkpoint.py fail-closed pipeline verified in full; CONTRACTS-CLEARED row reworded honestly — auto-mode consistency-checks, no separate clearance gate; this MERGED review is the founder review). Squash-merged `feat/a5-governance` (2542277); **324 tests green, main CI green**. **S6+S7 are real, IF-3 backed by real code** → A6 Router pii-path and A7 Memory unblocked against live Governance/Security. |
 
 ---
 
@@ -40,11 +41,10 @@ _None._
 - Pending: IF-2 (Router `LLMClient` half), IF-4 (Lifecycle transition API), IF-5 (Workflow runner). See docs/43 §3.
 
 ## Current phase
-**Phase 1–2 — Wave 0 implementation stage (CLEARED).** **A3 Ledger/Registry (S4) is MERGED to `main`**
-(first Wave-0 subsystem shipped; main always-green). **A5 Governance/Security (S6+S7) is implemented on
-`feat/a5-governance` (324 tests green, IF-3 frozen) — HALTED at the merge gate awaiting founder review.**
-A1 (Environment/S2), A2 (Config/S3), A11 (Logging/Test) remain cleared to implement **tests-first**
-(docs/70 §5): write each `TESTPLAN.md` test, then implement to satisfy the `54` acceptance rows + owned
-invariants, keeping docs in sync (docs/62), then open a PR against the 10 merge gates (docs/63). IF-1 is
-frozen and backed by real code → A4 Lifecycle and A7 Memory may begin against the live Ledger/Registry
-when scheduled; IF-3 additionally unblocks the A6 Router pii-path.
+**Phase 1–2 — Wave 0 implementation stage (CLEARED).** **A3 Ledger/Registry (S4) and A5
+Governance/Security (S6+S7) are MERGED to `main`** (main always-green, 324 tests). A1 (Environment/S2),
+A2 (Config/S3), A11 (Logging/Test) remain cleared to implement **tests-first** (docs/70 §5): write each
+`TESTPLAN.md` test, then implement to satisfy the `54` acceptance rows + owned invariants, keeping docs
+in sync (docs/62), then open a PR against the 10 merge gates (docs/63). IF-1 and IF-3 are frozen and
+backed by real code → A4 Lifecycle and A7 Memory may begin against the live Ledger/Registry when
+scheduled; IF-3 additionally unblocks the A6 Router pii-path.
