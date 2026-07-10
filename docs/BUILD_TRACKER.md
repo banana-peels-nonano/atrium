@@ -20,6 +20,10 @@ Legend — actions: `START` · `CONTRACTS-CLEARED` · `MERGED` · `PHASE-EXIT` �
 | 2026-07-06 | 1–2 | A3 Ledger/Registry (S4) | START | `main` at Wave-0 contracts (0b72eb3). Branch `feat/a3-ledger`, tests-first per docs/70 §5. |
 | 2026-07-06 | 1–2 | A3 Ledger/Registry (S4) | (impl, pre-gate) | Tests-first green: 122 S4 tests (60+40 property seeds) — INV-LEDGER replay==state, atomic+totally-ordered append, hash-chain tamper→fail-closed, snapshot→restore byte-identical, PII/token/type/cap/schema rejects. Built the frozen IF-1 shared types in `charterhouse/contracts/` (`events.py`, `state.py`) + `ledger/{store,ulid}.py` + `registry/facade.py`. Import-DAG + secret scan clean by hand (gates 5/10 still placeholders). Full CI green (229 tests). Docs synced (62). **HALT at merge gate — awaiting founder review before merge to `main`.** |
 | 2026-07-07 | 1–2 | A3 Ledger/Registry (S4) | MERGED | Founder-reviewed at the gate. Review fix: replay now fails closed with `ProjectionError` (naming the venture) for a state-less venture instead of a bare `ValueError` (test-first). Findings 2 (lineage cap keyed on `venture_id`) + 3 (non-atomic `restore`) accepted as documented for the hardening pass (ledger/RISKS.md). Squash-merged `feat/a3-ledger`; **123 S4 tests green, main CI green**. **S4 is real** → A4 Lifecycle, A5 Governance/Security, A7 Memory unblocked against the live Ledger/Registry + IF-1. |
+| 2026-07-07 | 1–2 | A5 Governance/Security (S6+S7) | START | Branch `feat/a5-governance` off `main` at A3 merge (408c37b). Opened contract stage for S6 Governance + S7 Security against live IF-1. Additive shared types first: contracts authz + IF-2 Config-half types (21983c1). |
+| 2026-07-07 | 1–2 | A5 Governance/Security (S6+S7) | CONTRACTS-CLEARED | S6+S7 contract docs (API/TESTPLAN/IMPLEMENTATION/RISKS per subsystem, 94ed2cf) written and self-cleared in **auto mode via consistency-checks** — no separate founder-clearance gate ran (unlike Wave 0); founder review deferred to the merge gate (see MERGED row when recorded). Tests-first written same day — red for the right reason (b8aeafe, docs/70 §5). |
+| 2026-07-07 | 1–2 | A5 Governance/Security (S6+S7) | INTERFACE-FREEZE | **IF-3 frozen** (docs/52 §12, docs/43 §3): Governance `classify/authorize/envelope_open/spend/send_budget_remaining` (governance/API.md) + Security `redact/scan/tag` signatures with the `Context.contains_pii` cloud-route guard (security/API.md, docs/40 §4). **Unlocks A6 Router pii-path (S8 enforcement of INV-PII-3), A7 Memory.** |
+| 2026-07-09 | 1–2 | A5 Governance/Security (S6+S7) | (impl, pre-gate) | Implementation green (eb9c67c): S6 classify/envelope/tokens/send-budget + facade; S7 redact → independent scan → fail-closed CHECKPOINT (INV-PII-1/2), tag + `cloud_route_allowed` guard (INV-PII-3), `CheckpointError` names finding kinds only — never values. Full CI green (**324 tests**). **HALT at merge gate — awaiting founder review before merge to `main`.** |
 
 ---
 
@@ -31,12 +35,16 @@ _None._
   + `append/read/replay/snapshot/restore` + `Registry.get/query`. Consumers: A4, A5, A7, A10, A11.
 - **IF-2 (Config half)** (2026-07-04): `get_route/get_model/get_provider/profile/budgets` + Route/Model/Provider/Budgets.
   Router `LLMClient` half still pending A6.
-- Pending: IF-2 (Router `LLMClient` half), IF-3 (Security redact/scan/tag), IF-4 (Lifecycle transition API), IF-5 (Workflow runner). See docs/43 §3.
+- **IF-3 — Governance + Security seam** (2026-07-07): Governance `classify/authorize/envelope_open/spend/send_budget_remaining`
+  + Security `redact/scan/tag` + `Context.contains_pii` cloud-route guard (docs/40 §4). Consumers: A6/S8 Router, A7 Memory.
+- Pending: IF-2 (Router `LLMClient` half), IF-4 (Lifecycle transition API), IF-5 (Workflow runner). See docs/43 §3.
 
 ## Current phase
 **Phase 1–2 — Wave 0 implementation stage (CLEARED).** **A3 Ledger/Registry (S4) is MERGED to `main`**
-(first Wave-0 subsystem shipped; main always-green). A1 (Environment/S2), A2 (Config/S3), A11 (Logging/Test)
-remain cleared to implement **tests-first** (docs/70 §5): write each `TESTPLAN.md` test, then implement to
-satisfy the `54` acceptance rows + owned invariants, keeping docs in sync (docs/62), then open a PR against
-the 10 merge gates (docs/63). IF-1 is frozen and now backed by real code → A4 Lifecycle, A5
-Governance/Security, A7 Memory may begin against the live Ledger/Registry when scheduled.
+(first Wave-0 subsystem shipped; main always-green). **A5 Governance/Security (S6+S7) is implemented on
+`feat/a5-governance` (324 tests green, IF-3 frozen) — HALTED at the merge gate awaiting founder review.**
+A1 (Environment/S2), A2 (Config/S3), A11 (Logging/Test) remain cleared to implement **tests-first**
+(docs/70 §5): write each `TESTPLAN.md` test, then implement to satisfy the `54` acceptance rows + owned
+invariants, keeping docs in sync (docs/62), then open a PR against the 10 merge gates (docs/63). IF-1 is
+frozen and backed by real code → A4 Lifecycle and A7 Memory may begin against the live Ledger/Registry
+when scheduled; IF-3 additionally unblocks the A6 Router pii-path.
