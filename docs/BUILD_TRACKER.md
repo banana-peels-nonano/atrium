@@ -29,6 +29,7 @@ Legend — actions: `START` · `CONTRACTS-CLEARED` · `MERGED` · `PHASE-EXIT` �
 | 2026-07-10 | 1–2 | A4 Lifecycle (S5) | CONTRACTS-CLEARED | S5 contract docs (API/TESTPLAN/IMPLEMENTATION/RISKS, 4aad1f2) written and self-cleared in **auto mode via the docs/56 consistency check** — no separate founder-clearance gate (A5 precedent); founder review deferred to the merge gate. Open questions resolved in IMPLEMENTATION §6 (guards as ledger facts, judgment-guard envelope, active-days unit, additive pivot/OMW/pause seams). |
 | 2026-07-10 | 1–2 | A4 Lifecycle (S5) | INTERFACE-FREEZE | **IF-4 frozen** (docs/43 §3: "Lifecycle transition API + `42` invariants"): `can_transition/transition/slots/clock` per docs/40 §3, `GuardResult/Result/SlotState/ActiveTime` shapes, the docs/42 §3 table + §2 WIP limits + §4 guard rules + §5 pivot semantics (INV-SM-1..6). Additive v1 seams: `pivot/grant_omw/pause/resume` (docs/43 §7). **Unlocks S10 Capability Framework, S12 Conductor.** |
 | 2026-07-10 | 1–2 | A4 Lifecycle (S5) | (impl, pre-gate) | Tests-first red (e972bb9) → green (ada99e7): docs/42 §3 verbatim-as-data (26 rows, fidelity-tested), 15×15 legality matrix reject+log, WIP/slots, active-day clocks with pause, express restriction, pivot kill-and-fork + OMW lineage caps (all-or-nothing), TTL re-confirmation; 60 seeded property walks vs an independent oracle; Stress-Test A/B/C reproduced via the simulator over real S4+S6. Full CI green (**407 tests**). **HALT at merge gate — awaiting founder review before merge to `main`.** |
+| 2026-07-10 | 1–2 | A4 Lifecycle (S5) | MERGED | Founder-reviewed at the gate: **transition guards + the INV-SM-5 lineage walk verified; invariants hold** (this MERGED review is the founder review, per the auto-mode contract stage). Housekeeping: `uv.lock` now tracked. Squash-merged `feat/a4-lifecycle` (8e5e12f); **407 tests green, main CI green**. **S5 is real, IF-4 backed by real code** → S10 Capability Framework and S12 Conductor unblocked against the live Lifecycle; the docs/63 gate-2 INV-SM harness can drop its placeholder. |
 
 ---
 
@@ -48,11 +49,10 @@ _None._
 - Pending: IF-2 (Router `LLMClient` half), IF-5 (Workflow runner). See docs/43 §3.
 
 ## Current phase
-**Phase 1–2 — Wave 0/1 implementation stage.** **A3 Ledger/Registry (S4) and A5 Governance/Security
-(S6+S7) are MERGED to `main`** (main always-green, 324 tests). **A4 Lifecycle (S5) is implemented on
-`feat/a4-lifecycle` (407 tests green, IF-4 frozen) — HALTED at the merge gate awaiting founder review.**
-A1 (Environment/S2), A2 (Config/S3), A11 (Logging/Test) remain cleared to implement **tests-first**
+**Phase 1–2 — Wave 0/1 implementation stage.** **A3 Ledger/Registry (S4), A5 Governance/Security
+(S6+S7), and A4 Lifecycle (S5) are MERGED to `main`** (main always-green, **407 tests**). A1
+(Environment/S2), A2 (Config/S3), A11 (Logging/Test) remain cleared to implement **tests-first**
 (docs/70 §5): write each `TESTPLAN.md` test, then implement to satisfy the `54` acceptance rows + owned
-invariants, keeping docs in sync (docs/62), then open a PR against the 10 merge gates (docs/63). IF-1,
-IF-3 (and on-branch IF-4) are frozen and backed by real code → A7 Memory may begin when scheduled;
-IF-3 unblocks the A6 Router pii-path; IF-4 (once merged) unblocks S10 Capabilities and S12 Conductor.
+invariants, keeping docs in sync (docs/62), then open a PR against the 10 merge gates (docs/63).
+IF-1, IF-3, and IF-4 are frozen and backed by real code → A7 Memory may begin when scheduled; IF-3
+unblocks the A6 Router pii-path; IF-4 unblocks S10 Capability Framework and S12 Conductor.
