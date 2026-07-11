@@ -70,3 +70,12 @@ No path partial-loads or substitutes a default for a security/routing value.
   the Router reads the secret at call time (docs/24). Config exposing a secret value would violate docs/24.
 - **Q: CLI-arg precedence (docs/25 §3) — who supplies it?** **RESOLVED —** `Config.load` accepts an
   optional `overrides` mapping for the CLI-arg tier; the CLI/Conductor supplies it. Absent overrides, precedence starts at profile.
+- **Q: Where does the default `Budgets` live, given docs/31 lists no `budgets.yaml`?** **RESOLVED —**
+  `routes.yaml` carries two top-level keys: `budgets` (the default envelope) and `routes` (role→Route).
+  docs/25 §2 describes profiles as overriding "routes/budgets", so both defaults sit in the one behavioral
+  file and profiles overlay either. With no profile, `budgets` resolves to this default and `profile == "default"`.
+- **Q: docs/54 §S3 lists "embed-model mismatch refused" — does S3 own it?** **RESOLVED — No; A1 owns it.**
+  The check compares `CHARTERHOUSE_EMBED_MODEL` (an **env** value) against the marker the vector index was
+  built with (a **filesystem** read). S3 reads neither env nor the vector store by contract (docs/20), so the
+  refusal lives in A1 preflight (which owns env + vector-store access); Config only exposes config data. Flagged
+  as a cross-subsystem consistency note in the A2 tracker row for founder confirmation.

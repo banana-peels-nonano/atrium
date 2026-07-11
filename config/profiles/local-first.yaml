@@ -1,2 +1,17 @@
-# profile local-first.yaml -- EMPTY (Phase 0). Populated by A2 in Phase 1.
-
+# profiles/local-first.yaml — maximum privacy / offline posture (docs/20): keep every
+# role on the local Ollama model where possible; free cloud only as a fallback. Useful
+# when a context carries PII (contains_pii hard-blocks cloud adapters anyway, INV-PII-3).
+routes:
+  reasoning:
+    primary: llama3.1-8b-local
+    fallback: [llama-3.3-70b-groq]
+    min_ctx: 8000
+  classify:
+    primary: llama3.1-8b-local
+    fallback: []
+  draft:
+    primary: llama3.1-8b-local
+    fallback: []
+  critic:
+    primary: llama3.1-8b-local
+    fallback: [deepseek-chat-free]

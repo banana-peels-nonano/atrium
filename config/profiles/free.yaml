@@ -1,2 +1,11 @@
-# profile free.yaml -- EMPTY (Phase 0). Populated by A2 in Phase 1.
-
+# profiles/free.yaml — the default zero-cost posture (docs/20): free cloud tiers + local
+# embeddings only, no paid dependency. Reaffirms the free-tier routing defaults so a
+# `free` load is explicit and self-documenting. Budgets inherit the routes.yaml default.
+routes:
+  reasoning:
+    primary: llama-3.3-70b-groq
+    fallback: [gemini-2.0-flash, deepseek-chat-free]
+    min_ctx: 32000
+  critic:
+    primary: deepseek-chat-free
+    fallback: [gemini-2.0-flash]

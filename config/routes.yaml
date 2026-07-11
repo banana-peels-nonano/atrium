@@ -1,2 +1,28 @@
-# routes.yaml -- EMPTY (Phase 0). Populated by Config Agent (A2) in Phase 1 per docs/25_configuration.md s2.
-
+# routes.yaml — the behavioral defaults (docs/25 §2/§3).
+# Two top-level keys (config/IMPLEMENTATION §6 resolution — docs/31 lists no separate
+# budgets file; docs/25 §2 says profiles override "routes/budgets"):
+#   budgets: the default founder budget envelope (docs/40 §1).
+#   routes:  role -> {primary, fallback[], min_ctx?, needs_tools?, needs_web?}.
+# The default routes are all FREE-tier (zero-paid posture, docs/20); profiles reroute.
+budgets:
+  monthly_usd: 20.0
+  on_exceeded: degrade
+  send_daily: 40
+routes:
+  reasoning:
+    primary: llama-3.3-70b-groq
+    fallback: [gemini-2.0-flash, deepseek-chat-free]
+    min_ctx: 32000
+  classify:
+    primary: llama3.1-8b-local
+    fallback: [llama-3.3-70b-groq]
+  draft:
+    primary: llama3.1-8b-local
+    fallback: [llama-3.3-70b-groq]
+  critic:
+    primary: deepseek-chat-free
+    fallback: [gemini-2.0-flash]
+  web:
+    primary: gemini-2.0-flash
+    fallback: []
+    needs_web: true

@@ -1,2 +1,15 @@
-# profile cheap-cloud.yaml -- EMPTY (Phase 0). Populated by A2 in Phase 1.
-
+# profiles/cheap-cloud.yaml — spend a little for quality on the hard roles (docs/25 §2).
+# Reroutes reasoning + critic to a paid frontier model (kept as fallback-guarded) and
+# lifts the monthly budget. Still Router-governed; billing remains a RED action (docs/14).
+routes:
+  reasoning:
+    primary: claude-sonnet
+    fallback: [llama-3.3-70b-groq, gemini-2.0-flash]
+    min_ctx: 32000
+  critic:
+    primary: claude-sonnet
+    fallback: [deepseek-chat-free]
+budgets:
+  monthly_usd: 100.0
+  on_exceeded: degrade
+  send_daily: 60
