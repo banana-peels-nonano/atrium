@@ -67,3 +67,18 @@ path, or let a fake's interface drift from the real subsystem it doubles.
   bodies land with their dependencies. Stated so as not to over-promise (advisor note).
 - **Q: Log vs Telemetry — same sink?** **RESOLVED — No.** `Log` → `K:\Logs\` files (operational); `Telemetry` →
   ledger `llm_call` events (auditable, replayable). Distinct sinks by design (docs/40 §10, docs/41 §2).
+- **Q: How is `InMemoryLedger` kept from drifting from the real `Ledger` (RISKS R3)?** **RESOLVED —** it is a
+  **subclass of the real `Ledger`** over a per-instance ephemeral temp dir (removed on `close()`). "In-memory"
+  = ephemeral + auto-managed (no persistent K: state), not a reimplementation of the hash-chain fold — so it
+  cannot drift in signature *or* semantics (the strongest form of the docs/55 §2 fake). The parity self-test
+  still asserts signature equality. **Founder consistency note** (lighter review): confirm this reading of
+  "in-memory" is acceptable vs a pure-RAM reimplementation.
+- **Q: Gate 2 (INV-SM harness) — is it live now that S5 is merged?** **RESOLVED — Yes.** `scripts/invariant_check.py`
+  drives `tests/invariants/manifest.py`: it verifies every INV-SM-1..6 maps to a **collectable** test and fails
+  the gate on any unmapped/renamed/deleted invariant test (docs/55 §4). ci.ps1 gate 2 now runs it (placeholder
+  removed). The manifest is authoritative for the INV-SM family today; INV-GOV/PII/LEDGER families are declared
+  in `REQUIRED_INVARIANTS` and mapped as A11 hoists those suites into the shared harness (future, not gate-2-blocking).
+- **Q: Simulator body — deliverable now that S4/S5 exist?** **RESOLVED — Still shape-only.** It drives Conductor
+  commands (S12) over capability beats (S10), neither of which exists yet. The *shape* is frozen; S5's Stress-Test
+  A/B/C reproduction already runs against the real stack in `tests/integration/test_lifecycle_sim.py`. `run()`
+  raises a precise not-yet-executable error rather than a silent stub.

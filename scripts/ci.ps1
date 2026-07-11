@@ -31,9 +31,16 @@ Gate 3 'docs present' {
     }
 }
 
+# 2: Lifecycle invariants (INV-SM-*) — the A11 invariant harness, live now that S5 is real.
+# Verifies every INV-SM-1..6 maps to a collectable test (docs/55 §4); an unmapped or
+# renamed/deleted invariant test fails the gate rather than passing silently.
+Gate 2 'lifecycle invariants (INV-SM-*)' {
+    & $py (Join-Path $root 'scripts\invariant_check.py') 'INV-SM'
+    if ($LASTEXITCODE -ne 0) { throw "invariant harness failed" }
+}
+
 # Placeholders — activated as the owning subsystems land:
 Skip 1  'architecture contracts / ICR check' 'no 40/API surfaces yet'
-Skip 2  'lifecycle invariants (INV-SM-*)'    'S5 not built (Phase 2)'
 Skip 5  'anti-coupling import check (43 §8)' 'no subsystem modules yet'
 Skip 9  'ownership check (60)'               'OWNERS map lands with 60 tooling'
 Skip 10 'determinism import check (INV-DET)' 'no LLM-path modules yet'
