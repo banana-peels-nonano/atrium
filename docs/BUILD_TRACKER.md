@@ -33,6 +33,9 @@ Legend — actions: `START` · `CONTRACTS-CLEARED` · `MERGED` · `PHASE-EXIT` �
 | 2026-07-11 | 1–2 | A2 Config (S3) | START | Founder go-ahead (Wave-0 trio: A1/A2/A11, each own branch, lighter review). Branch `feat/a2-config` off `main` at A4 merge (cf8a69d). Contract docs were **founder-CLEARED at Wave 0** (2026-07-04 CONTRACTS-CLEARED, docs/WAVE0_CLEARANCE.md) — re-ran the docs/56 consistency check in auto mode; refined config/IMPLEMENTATION §6 (routes.yaml carries default `budgets`+`routes`; embed-model-mismatch refusal lives in A1 preflight, which owns env+vector access — **consistency note for founder**). |
 | 2026-07-11 | 1–2 | A2 Config (S3) | (impl, pre-gate) | Tests-first red → green: loader (schema strict-key validation, INV-CFG both clauses incl. fallback refs, profile/override precedence, located errors) + the immutable `Config` facade (docs/40 §1) + the real committed `config/*.yaml` (providers/models/routes + free/cheap-cloud/local-first profiles, zero-paid-on-`free`). Pins `pyyaml==6.0.2` (safe_load only). IF-2 Config half already frozen (contracts/config_types.py). Full CI green (**427 tests**). **HALT at merge gate.** |
 | 2026-07-11 | 1–2 | A2 Config (S3) | MERGED | Founder-reviewed at the gate (INV-CFG confirmed; routes.yaml budgets+routes layout + embed-mismatch-in-A1 boundary flags accepted). Squash-merged `feat/a2-config` (65d99cc); **main CI green**. **S3 is real, IF-2 Config half backed by real code + committed `config/*.yaml`** → A1 preflight's real `Config.load` path and A6 Router role-resolution unblocked. |
+| 2026-07-11 | 1–2 | A1 Environment (S2) | START | Founder go-ahead (Wave-0 trio: A1/A2/A11, each own branch, lighter review). Branch `feat/a1-environment` off `main` at A4 merge (cf8a69d). Contract docs **founder-CLEARED at Wave 0** (2026-07-04, docs/WAVE0_CLEARANCE.md); re-ran the docs/56 consistency check in auto mode. `Config` consumed via a `ConfigPort` stub (merged from A2 at merge time; docs/43 §2). |
+| 2026-07-11 | 1–2 | A1 Environment (S2) | (impl, pre-gate) | Tests-first red → green: `preflight()` (the sole env reader) with the ordered docs/20 checks — one precise error each for missing env var / non-writable K: path / low C: headroom / Ollama unreachable / uninitialized vector store / **embed-model mismatch** (A1-owned; realizes docs/54 §S3's "embed-model mismatch refused" since Config reads no env/vector store — see config/IMPLEMENTATION §6) / unresolvable route (surfaces Config's error) — producing the frozen `EnvContext` (added to `contracts/env_context.py` with `PathKind`). K:-discipline guard refuses off-root growing writes; **static env-boundary scan** confirms `os.environ` lives only under `charterhouse/env/`; no-partial-boot fault matrix; zero-paid-on-`free`. Additive keyword seams keep `preflight()`'s frozen signature. Full CI green (**420 tests**). **HALT at merge gate.** |
+| 2026-07-11 | 1–2 | A1 Environment (S2) | MERGED | Founder-reviewed at the gate (preflight one-precise-error checks + K:-discipline + env-boundary scan + embed-mismatch placement accepted). Squash-merged `feat/a1-environment` (e33158e); **main CI green**. **S2 is real** — `EnvContext` is the sole env reader → every subsystem takes paths/profile/endpoints from preflight, never env; A1's real `Config.load` path (A2 now merged) is live. |
 
 ---
 
@@ -53,9 +56,8 @@ _None._
 
 ## Current phase
 **Phase 1–2 — Wave 0/1 implementation stage.** **A3 Ledger/Registry (S4), A5 Governance/Security
-(S6+S7), and A4 Lifecycle (S5) are MERGED to `main`** (main always-green, **407 tests**). A1
-(Environment/S2), A2 (Config/S3), A11 (Logging/Test) remain cleared to implement **tests-first**
-(docs/70 §5): write each `TESTPLAN.md` test, then implement to satisfy the `54` acceptance rows + owned
-invariants, keeping docs in sync (docs/62), then open a PR against the 10 merge gates (docs/63).
-IF-1, IF-3, and IF-4 are frozen and backed by real code → A7 Memory may begin when scheduled; IF-3
-unblocks the A6 Router pii-path; IF-4 unblocks S10 Capability Framework and S12 Conductor.
+(S6+S7), A4 Lifecycle (S5), A2 Config (S3), and A1 Environment (S2) are MERGED to `main`**
+(main always-green). A11 Logging/Test (S14+S15) is the last Wave-0 subsystem, merging now. IF-1,
+IF-2 (Config half), IF-3, and IF-4 are frozen and backed by real code → A7 Memory may begin when
+scheduled; IF-3 unblocks the A6 Router pii-path; IF-4 unblocks S10 Capability Framework and S12
+Conductor; A6 Router now has both real Config (role resolution) and real EnvContext.

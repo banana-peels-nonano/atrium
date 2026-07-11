@@ -66,3 +66,13 @@ Never partial-boot; never auto-install beyond an explicit, logged embedding pull
 - **Q: May preflight auto-create missing K: dirs?** **RESOLVED —** it may create the *runtime* subdirs it owns
   the contract for (ledger/vectors/logs/backups roots) when their K: parent exists and is writable; it never
   creates drives, installs software, or pulls models silently (only an explicit, logged embedding pull, docs/21).
+- **Q: Who enforces the docs/25 §4 embed-model-mismatch refusal (docs/54 §S3 lists it under Config)?**
+  **RESOLVED — A1, not A2.** The check compares `CHARTERHOUSE_EMBED_MODEL` (env) against the marker the vector
+  index was built with (a filesystem read under `vectors_dir`). S3 reads neither env nor the vector store by
+  contract; A1 owns both. Preflight check #4 reads the `EMBED_MODEL` marker in `vectors_dir` and raises
+  `EmbedModelMismatch` on divergence (guarded re-index required). Recorded in config/IMPLEMENTATION §6 too.
+- **Q: How is `preflight() -> EnvContext` (no-arg frozen signature) made deterministic/testable?**
+  **RESOLVED —** additive keyword seams (docs/43 §7): `env` mapping, `config_loader`, `health` probe, `disk`
+  probe, `c_drive`. `preflight()` with none supplied wires the real `os.environ` + probes; tests inject fakes.
+  The frozen positional signature is unchanged. `models_dir`/`logs_dir`/`ledger_dir`/`backups_dir` are derived
+  from the `CHARTERHOUSE_DATA_DIR` root; `config_dir`/`vault_dir` from `CHARTERHOUSE_ROOT`.
