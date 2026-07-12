@@ -43,6 +43,7 @@ Legend — actions: `START` · `CONTRACTS-CLEARED` · `MERGED` · `PHASE-EXIT` �
 | 2026-07-11 | 3 | A6 Router (S8) | CONTRACTS-CLEARED | S8 contract docs (e9d8b9d) written and self-cleared in **auto mode via the docs/56 consistency check** — founder review deferred to the merge gate (A5 precedent). Key resolutions (IMPLEMENTATION §6): secrets via injected `key_lookup` at wiring time (env-boundary kept — docs/24 wording reconciled with docs/20); embeddings deferred to A7 (local-only); Grok = named OpenAI-compatible subclass; conservative budget fold (A11 cross-note: stamp `timestamp` in `Telemetry.record`). |
 | 2026-07-11 | 3 | A6 Router (S8) | INTERFACE-FREEZE | **IF-2 COMPLETE** — the `LLMClient` half frozen (docs/52 §12): `LLMClient.call(role, messages, tools?, require?) -> LLMResponse` + `Require`/`LLMResponse` shapes + `Adapter.complete` signature (docs/40 §5); additive `critic_tier` + adapter `context` kwargs (docs/43 §7). **Unlocks A7 Memory and S10 Capability Framework against the full IF-2.** |
 | 2026-07-11 | 3 | A6 Router (S8) | (impl, pre-gate) | Tests-first red (50635ba) → green: chain builder (config-order candidates, constraint merging, PII locality filter, budget tier guard, deterministic free/local degrade extension), failover loop (one attempt per candidate → `ProvidersExhausted` pause signal + `error` event), OpenAI-compat adapter + Anthropic/Gemini pure-translation shims + Grok subclass, **two-layer INV-PII-3 enforcement** (chain filter with `pii_block` audit + the merged S7 `require_cloud_allowed` guard inside every cloud adapter — a guard hit is a hard stop, never a failover hop), `llm_call` telemetry with catalog-priced cost (INV-ROUTE-4). Design note at the gate: under a PII tag the ROUTE-level `min_ctx` relaxes so the work runs locally (explicit `require.min_ctx` still enforced; IMPLEMENTATION §6.6). Interim `_catalog_ids` read of Config's table pending an additive `Config.models()` (RISKS R9, A2 cross-note). 20-seed failover property + committed-config integration (tag→local PII flow end-to-end). Full CI green (**495 tests**). **HALT at merge gate — PII-block + failover code presented for founder review.** |
+| 2026-07-12 | 3 | A6 Router (S8) | MERGED | Founder-reviewed at the gate (2026-07-11): **PII cloud-block verified in both layers — chain-level locality filter with `pii_block` audit + the merged S7 `require_cloud_allowed` guard reused inside every cloud adapter, hard-stop semantics confirmed, zero cloud calls proven end-to-end; failover logic clean; INV-ROUTE-1..4 covered** (this MERGED review is the founder review, per the auto-mode contract stage). Squash-merged `feat/a6-router` (df5b28b); **495 tests green, main CI green** (gate 2 INV-SM harness OK). **S8 is real, IF-2 COMPLETE and backed by real code** → A7 Memory builds against the full IF-2 + IF-3; open follow-ups: additive `Config.models()` to retire the interim `_catalog_ids` read (router RISKS R9, A2 cross-note). |
 
 ---
 
@@ -64,9 +65,8 @@ _None._
 - Pending: IF-5 (Workflow runner). See docs/43 §3.
 
 ## Current phase
-**Phase 3 — Wave 2 opens.** **Wave 0/1 complete on `main`** (S2, S3, S4, S5, S6+S7, S14+S15 all
-merged; main always-green). **A6 Router (S8) is implemented on `feat/a6-router` (495 tests green,
-IF-2 complete) — HALTED at the merge gate awaiting founder review** (PII cloud-block + failover
-presented). IF-1..IF-4 are all frozen and backed by real code → once S8 merges, A7 Memory builds
-against the full IF-2 + IF-3; S10 Capability Framework and S12 Conductor remain unblocked by IF-4.
-Pending freeze: IF-5 (Workflow runner, with S10).
+**Phase 3 — Wave 2 in progress.** **Wave 0/1 complete and A6 Router (S8) MERGED on `main`**
+(S2, S3, S4, S5, S6+S7, S8, S14+S15; main always-green, 495 tests). IF-1..IF-4 all frozen and
+backed by real code, **IF-2 now COMPLETE** → A7 Memory is unblocked against the full IF-2 + IF-3;
+S10 Capability Framework and S12 Conductor remain unblocked by IF-4. Pending freeze: IF-5
+(Workflow runner, with S10).
