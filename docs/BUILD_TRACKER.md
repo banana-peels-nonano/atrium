@@ -39,6 +39,10 @@ Legend — actions: `START` · `CONTRACTS-CLEARED` · `MERGED` · `PHASE-EXIT` �
 | 2026-07-11 | 1–2 | A11 Logging/Test (S14+S15) | START | Founder go-ahead (Wave-0 trio). Branch `feat/a11-logging-test` off `main` at A4 merge (cf8a69d). Contract docs **founder-CLEARED at Wave 0** (2026-07-04, harness surface INTERFACE-FREEZE row); re-ran the docs/56 consistency check in auto mode. Now that S4/S5/S6/S7 are real, the Wave-0 "shape-only" harness gets real bodies. |
 | 2026-07-11 | 1–2 | A11 Logging/Test (S14+S15) | (impl, pre-gate) | S14 Logging: `Log.event` (structured file sink) + `Telemetry.record` (`llm_call` ledger events) — distinct sinks; both redact secret/PII fields reusing the merged S7 `Scanner` (no drift). S15 harness: `FakeProvider/FakeEmbedder/Clock/InMemoryLedger/Simulator` (frozen signatures; **InMemoryLedger is a real-`Ledger` subclass over an ephemeral temp dir** — strongest anti-drift, founder consistency note) + `pii_corpus()`/`golden_set()` fixtures + the `invariant_manifest`. **Gate 2 goes LIVE**: `scripts/invariant_check.py` verifies every INV-SM-1..6 maps to a collectable test (docs/55 §4); ci.ps1 placeholder removed. Harness co-developed with its self-tests (docs/51 A11 — the fakes are the deliverable the self-tests exercise). Full CI green (**424 tests, gate 2 now active**). **HALT at merge gate.** |
 | 2026-07-11 | 1–2 | A11 Logging/Test (S14+S15) | MERGED | Founder-reviewed at the gate (log redaction through the merged S7 scanner + InMemoryLedger-as-`Ledger`-subclass accepted). Squash-merged `feat/a11-logging-test`; **main CI green, gate 2 now LIVE** (INV-SM harness). **S14+S15 are real** → observability spine (`Log`/`Telemetry`) + shared fakes + invariant harness available to every subsystem; **Wave 0 complete** (A1/A2/A3/A11 + Wave-1 A4/A5 all merged). |
+| 2026-07-11 | 3 | A6 Router (S8) | START | Founder go-ahead. Branch `feat/a6-router` off `main` at A11 merge (2c60e60). Builds docs/11 + docs/22 against real Config (IF-2 half), real S7 guard (IF-3), real Ledger/Telemetry (IF-1/S14). A11's `FakeProvider` is every transport — no network in A6 (live smoke non-gating). |
+| 2026-07-11 | 3 | A6 Router (S8) | CONTRACTS-CLEARED | S8 contract docs (e9d8b9d) written and self-cleared in **auto mode via the docs/56 consistency check** — founder review deferred to the merge gate (A5 precedent). Key resolutions (IMPLEMENTATION §6): secrets via injected `key_lookup` at wiring time (env-boundary kept — docs/24 wording reconciled with docs/20); embeddings deferred to A7 (local-only); Grok = named OpenAI-compatible subclass; conservative budget fold (A11 cross-note: stamp `timestamp` in `Telemetry.record`). |
+| 2026-07-11 | 3 | A6 Router (S8) | INTERFACE-FREEZE | **IF-2 COMPLETE** — the `LLMClient` half frozen (docs/52 §12): `LLMClient.call(role, messages, tools?, require?) -> LLMResponse` + `Require`/`LLMResponse` shapes + `Adapter.complete` signature (docs/40 §5); additive `critic_tier` + adapter `context` kwargs (docs/43 §7). **Unlocks A7 Memory and S10 Capability Framework against the full IF-2.** |
+| 2026-07-11 | 3 | A6 Router (S8) | (impl, pre-gate) | Tests-first red (50635ba) → green: chain builder (config-order candidates, constraint merging, PII locality filter, budget tier guard, deterministic free/local degrade extension), failover loop (one attempt per candidate → `ProvidersExhausted` pause signal + `error` event), OpenAI-compat adapter + Anthropic/Gemini pure-translation shims + Grok subclass, **two-layer INV-PII-3 enforcement** (chain filter with `pii_block` audit + the merged S7 `require_cloud_allowed` guard inside every cloud adapter — a guard hit is a hard stop, never a failover hop), `llm_call` telemetry with catalog-priced cost (INV-ROUTE-4). Design note at the gate: under a PII tag the ROUTE-level `min_ctx` relaxes so the work runs locally (explicit `require.min_ctx` still enforced; IMPLEMENTATION §6.6). Interim `_catalog_ids` read of Config's table pending an additive `Config.models()` (RISKS R9, A2 cross-note). 20-seed failover property + committed-config integration (tag→local PII flow end-to-end). Full CI green (**495 tests**). **HALT at merge gate — PII-block + failover code presented for founder review.** |
 
 ---
 
@@ -48,19 +52,21 @@ _None._
 ## Interface freezes recorded
 - **IF-1 — Ledger/Registry + Event catalog** (2026-07-04): envelope (docs/41 §1) + event vocabulary (docs/41 §2)
   + `append/read/replay/snapshot/restore` + `Registry.get/query`. Consumers: A4, A5, A7, A10, A11.
-- **IF-2 (Config half)** (2026-07-04): `get_route/get_model/get_provider/profile/budgets` + Route/Model/Provider/Budgets.
-  Router `LLMClient` half still pending A6.
+- **IF-2 — Config + LLMClient (COMPLETE)** (Config half 2026-07-04; LLMClient half 2026-07-11):
+  `get_route/get_model/get_provider/profile/budgets` + Route/Model/Provider/Budgets;
+  `LLMClient.call(role, messages, tools?, require?) -> LLMResponse` + `Require`/`LLMResponse` +
+  `Adapter.complete` (docs/40 §1/§5). Consumers: A1 preflight, A7 Memory, S10 Framework.
 - **IF-3 — Governance + Security seam** (2026-07-07): Governance `classify/authorize/envelope_open/spend/send_budget_remaining`
   + Security `redact/scan/tag` + `Context.contains_pii` cloud-route guard (docs/40 §4). Consumers: A6/S8 Router, A7 Memory.
 - **IF-4 — Lifecycle transition API + docs/42 invariants** (2026-07-10): `can_transition/transition/slots/clock`
   (docs/40 §3) + the docs/42 §3 table/§2 WIP/§4 rules/§5 pivot (INV-SM-1..6); additive `pivot/grant_omw/pause/resume`.
   Consumers: S10 Capability Framework, S12 Conductor.
-- Pending: IF-2 (Router `LLMClient` half), IF-5 (Workflow runner). See docs/43 §3.
+- Pending: IF-5 (Workflow runner). See docs/43 §3.
 
 ## Current phase
-**Phase 1–2 — Wave 0/1 implementation stage.** **A3 Ledger/Registry (S4), A5 Governance/Security
-(S6+S7), A4 Lifecycle (S5), A2 Config (S3), and A1 Environment (S2) are MERGED to `main`**
-(main always-green). A11 Logging/Test (S14+S15) is the last Wave-0 subsystem, merging now. IF-1,
-IF-2 (Config half), IF-3, and IF-4 are frozen and backed by real code → A7 Memory may begin when
-scheduled; IF-3 unblocks the A6 Router pii-path; IF-4 unblocks S10 Capability Framework and S12
-Conductor; A6 Router now has both real Config (role resolution) and real EnvContext.
+**Phase 3 — Wave 2 opens.** **Wave 0/1 complete on `main`** (S2, S3, S4, S5, S6+S7, S14+S15 all
+merged; main always-green). **A6 Router (S8) is implemented on `feat/a6-router` (495 tests green,
+IF-2 complete) — HALTED at the merge gate awaiting founder review** (PII cloud-block + failover
+presented). IF-1..IF-4 are all frozen and backed by real code → once S8 merges, A7 Memory builds
+against the full IF-2 + IF-3; S10 Capability Framework and S12 Conductor remain unblocked by IF-4.
+Pending freeze: IF-5 (Workflow runner, with S10).
