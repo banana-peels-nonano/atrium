@@ -5,6 +5,7 @@ description = "Charter House — a deterministic solo-founder startup factory (I
 requires-python = ">=3.13"
 # Runtime dependencies are added per subsystem in later phases, pinned for reproducibility.
 dependencies = [
+    "lancedb==0.34.0",
     "pyyaml==6.0.2",
 ]
 
