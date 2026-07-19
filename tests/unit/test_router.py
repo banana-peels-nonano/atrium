@@ -278,3 +278,21 @@ def test_anthropic_gemini_translation_pure():
         {"candidates": [{"content": {"parts": [{"text": "gemini says"}]}}],
          "usageMetadata": {"promptTokenCount": 7, "candidatesTokenCount": 3}})
     assert g_raw["text"] == "gemini says" and g_raw["tokens"] == {"in": 7, "out": 3}
+
+
+# --- RISKS R9 retirement (feat/a2-accessors) ----------------------------------------------
+
+
+def test_degrade_uses_public_models_accessor():
+    """Router RISKS R9 retired: the degrade extension reads the additive
+    ``Config.models()`` seam — no module under router/ reaches into Config internals
+    (``config._``) and the interim ``_catalog_ids`` shim is gone."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2] / "charterhouse" / "router"
+    offenders = []
+    for py in root.rglob("*.py"):
+        text = py.read_text(encoding="utf-8")
+        if "config._" in text or "_catalog_ids" in text:
+            offenders.append(py.name)
+    assert not offenders, f"private Config reach still present in: {offenders}"

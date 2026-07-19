@@ -9,15 +9,29 @@ Determinism (docs/61 §INV-DET): stdlib + contracts only; no LLM; no env read.
 
 from __future__ import annotations
 
-from charterhouse.contracts.config_types import Budgets, Model, Provider, Route
+from dataclasses import fields as dataclass_fields
+
+from charterhouse.contracts.config_types import (
+    Budgets,
+    MemoryConfig,
+    Model,
+    Provider,
+    Route,
+    default_family,
+)
 
 from charterhouse.config.types import LocatedError
 
 # Allowed keys per file kind: (required, optional). Anything else → unknown-key reject.
 _PROVIDER_KEYS = (("base_url", "key_env", "kind"), ())
-_MODEL_KEYS = (("provider", "ctx", "price_in", "price_out", "tier"), ("good_at",))
+_MODEL_KEYS = (("provider", "ctx", "price_in", "price_out", "tier"),
+               ("good_at", "family"))
 _ROUTE_KEYS = (("primary",), ("fallback", "min_ctx", "needs_tools", "needs_web"))
 _BUDGET_KEYS = (("monthly_usd", "on_exceeded", "send_daily"), ())
+# The additive docs/33 tuning block (feat/a2-accessors): every key optional, defaults
+# from the frozen MemoryConfig shape itself (one source of truth for names + defaults).
+_MEMORY_KEYS = ((), tuple(f.name for f in dataclass_fields(MemoryConfig)))
+_MEMORY_INT_KEYS = frozenset({"promote_min_ventures", "max_k"})
 
 
 def _require_mapping(raw: object, *, file: str, where: str) -> dict:
@@ -56,9 +70,20 @@ def parse_model(mid: str, raw: object, *, file: str) -> Model:
     good_at = m.get("good_at", [])
     if not isinstance(good_at, list):
         raise LocatedError("good_at must be a list", file=file, where=f"{where}.good_at")
+    # Additive `family` (docs/43 §7): an explicit key wins; absent, the canonical
+    # derivation defaults it — the catalog, not consumers, owns family semantics.
+    if "family" in m:
+        family = m["family"]
+        if not isinstance(family, str) or not family.strip():
+            raise LocatedError("family must be a non-empty string",
+                               file=file, where=f"{where}.family")
+        family = family.strip()
+    else:
+        family = default_family(mid)
     return Model(provider=str(m["provider"]), ctx=int(m["ctx"]),
                  price_in=float(m["price_in"]), price_out=float(m["price_out"]),
-                 tier=str(m["tier"]), good_at=tuple(str(g) for g in good_at))
+                 tier=str(m["tier"]), good_at=tuple(str(g) for g in good_at),
+                 family=family)
 
 
 def parse_route(role: str, raw: object, *, file: str) -> Route:
@@ -83,3 +108,21 @@ def parse_budgets(raw: object, *, file: str) -> Budgets:
     _check_keys(m, *_BUDGET_KEYS, file=file, where=where)
     return Budgets(monthly_usd=float(m["monthly_usd"]), on_exceeded=str(m["on_exceeded"]),
                    send_daily=int(m["send_daily"]))
+
+
+def parse_memory(raw: object, *, file: str) -> MemoryConfig:
+    """The additive ``memory:`` block (docs/33 tuning; memory RISKS R9). Every key
+    optional; absent keys keep the frozen ``MemoryConfig`` defaults; unknown keys and
+    non-numeric values are located errors (docs/25 §4 strict-key discipline)."""
+    where = "memory"
+    m = _require_mapping(raw, file=file, where=where)
+    _check_keys(m, *_MEMORY_KEYS, file=file, where=where)
+    values: dict = {}
+    for key, value in m.items():
+        try:
+            values[key] = int(value) if key in _MEMORY_INT_KEYS else float(value)
+        except (TypeError, ValueError):
+            raise LocatedError(
+                f"{key} must be a number, got {type(value).__name__}",
+                file=file, where=f"{where}.{key}") from None
+    return MemoryConfig(**values)

@@ -30,7 +30,13 @@ class Route:
 @dataclass(frozen=True)
 class Model:
     """A model catalog entry (docs/40 §1): ``{provider, ctx, price_in, price_out, tier,
-    good_at[]}``. Prices are USD per million tokens (docs/22)."""
+    good_at[]}``. Prices are USD per million tokens (docs/22).
+
+    ``family`` is the **additive** docs/43 §7 field (capabilities RISKS R3, founder
+    follow-up at the A8 gate): the model family the INV-WF-2 cross-family critic check
+    compares. The loader always fills it — an explicit ``family:`` key in models.yaml
+    wins; otherwise ``default_family(id)`` derives it. Empty only on hand-built stubs.
+    """
 
     provider: str
     ctx: int
@@ -38,6 +44,40 @@ class Model:
     price_out: float
     tier: str
     good_at: tuple[str, ...] = ()
+    family: str = ""
+
+
+def default_family(model_id: str) -> str:
+    """The canonical family derivation — the model id's leading alphabetic token,
+    lowercased (``claude-sonnet``→``claude``, ``llama3.1-8b-local``→``llama``). ONE home
+    (this module): S3's loader uses it to default ``Model.family``; nothing else parses
+    model ids for families (the critic's interim heuristic is retired — A8 RISKS R3)."""
+    letters = []
+    for ch in model_id:
+        if ch.isalpha():
+            letters.append(ch.lower())
+        else:
+            break
+    return "".join(letters) if letters else model_id.lower()
+
+
+@dataclass(frozen=True)
+class MemoryConfig:
+    """The S9 retrieval/consolidation tuning block (docs/33 "weights in config,
+    tunable"; memory RISKS R9) — the **additive** ``Config.memory`` accessor's shape,
+    mirroring ``RetrievalWeights`` field-for-field with the same frozen defaults.
+    Optional ``memory:`` block in routes.yaml; absent keys keep these defaults."""
+
+    w_semantic: float = 0.5
+    w_tag: float = 0.2
+    w_recency: float = 0.15
+    w_confidence: float = 0.15
+    w_segment: float = 0.1
+    half_life_active: float = 30.0
+    dup_threshold: float = 0.995
+    retire_below: float = 0.2
+    promote_min_ventures: int = 3
+    max_k: int = 16
 
 
 @dataclass(frozen=True)

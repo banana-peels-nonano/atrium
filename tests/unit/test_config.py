@@ -193,3 +193,77 @@ def test_free_profile_all_free_tier(tmp_path):
         route = cfg.get_route(role)
         for model_id in (route.primary, *route.fallback):
             assert cfg.get_model(model_id).tier == "free", f"{role}->{model_id} not free"
+
+
+# --- the three A2 cross-note accessors (docs/43 s7 additive; feat/a2-accessors) -----------
+
+
+def test_models_listing_accessor(tmp_path):
+    """Router RISKS R9: ``Config.models()`` lists every catalog id, sorted — the frozen
+    listing seam replacing the router's interim internal-table read."""
+    cfg = Config.load(sup.write_config(tmp_path), profile="free")
+    assert cfg.models() == ("free-cloud-big", "local-small", "paid-cloud-big")
+    assert isinstance(cfg.models(), tuple)  # immutable listing, ids only
+
+
+def test_model_family_defaults_from_id(tmp_path):
+    """Capabilities RISKS R3 (founder follow-up): ``Model.family`` — an explicit
+    ``family:`` key wins; absent, the loader derives ``default_family(id)`` (leading
+    alphabetic token). The catalog, not consumers, owns family semantics."""
+    models = sup.clone(sup.MODELS)
+    models["grok-beta"] = {"provider": "openrouter", "ctx": 131072, "price_in": 0.0,
+                           "price_out": 0.0, "tier": "free", "family": "xai"}
+    cfg = Config.load(sup.write_config(tmp_path, models=models), profile="free")
+    assert cfg.get_model("grok-beta").family == "xai"          # explicit key wins
+    assert cfg.get_model("local-small").family == "local"      # derived default
+    assert cfg.get_model("free-cloud-big").family == "free"    # derived default
+
+
+def test_model_family_invalid_refused(tmp_path):
+    """Fail closed: a non-string / empty explicit ``family`` is a located error."""
+    for bad in (42, ""):
+        models = sup.clone(sup.MODELS)
+        models["local-small"]["family"] = bad
+        with pytest.raises(LocatedError, match="family"):
+            Config.load(sup.write_config(tmp_path / str(bad), models=models),
+                        profile="free")
+
+
+def test_memory_accessor_defaults(tmp_path):
+    """Memory RISKS R9: no ``memory:`` block in routes.yaml -> ``Config.memory`` carries
+    the docs/33 defaults (mirrors ``RetrievalWeights`` field-for-field)."""
+    cfg = Config.load(sup.write_config(tmp_path), profile="free")
+    mc = cfg.memory
+    assert (mc.w_semantic, mc.w_tag, mc.w_recency, mc.w_confidence, mc.w_segment) == \
+        (0.5, 0.2, 0.15, 0.15, 0.1)
+    assert (mc.half_life_active, mc.dup_threshold, mc.retire_below) == (30.0, 0.995, 0.2)
+    assert (mc.promote_min_ventures, mc.max_k) == (3, 16)
+
+
+def test_memory_block_overrides(tmp_path):
+    """A partial ``memory:`` block overrides only the named keys; the rest keep the
+    docs/33 defaults; the value is frozen."""
+    cfg = Config.load(sup.write_config(tmp_path, memory={"w_semantic": 0.7, "max_k": 8}),
+                      profile="free")
+    assert cfg.memory.w_semantic == 0.7 and cfg.memory.max_k == 8
+    assert cfg.memory.w_tag == 0.2  # untouched default
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        cfg.memory.max_k = 99  # type: ignore[misc]
+
+
+def test_memory_unknown_key_refused(tmp_path):
+    """Strict-key discipline extends to the new block: an unknown memory key is a
+    located error (docs/25 s4 — no silent drop)."""
+    with pytest.raises(LocatedError, match="w_bogus"):
+        Config.load(sup.write_config(tmp_path, memory={"w_bogus": 1.0}), profile="free")
+
+
+def test_committed_config_carries_accessors(repo_root):
+    """The real committed config/ loads with the new seams live: models() lists the
+    catalog; memory carries the committed (default) block."""
+    cfg = Config.load(repo_root / "config", profile="free")
+    ids = cfg.models()
+    assert ids and ids == tuple(sorted(ids))
+    for mid in ids:
+        assert cfg.get_model(mid).family  # every committed model has a family
+    assert cfg.memory.max_k >= 1

@@ -118,7 +118,7 @@ partial/guessed response (fail closed).
    (`PIIRouteBlocked`). Capability requirements (`needs_tools`/`needs_web`) are
    functional, not quality, and stay enforced under PII.
 7. *The degrade extension needs the catalog's model ids, but Config's frozen surface has
-   no listing method.* → **RESOLVED (interim):** one read of the internal table in
-   `chain._catalog_ids`, isolated in a single function with a loud note. Cross-subsystem
-   note for A2: an additive `Config.models() -> tuple[str, ...]` seam (docs/43 §7
-   no-bump) replaces it; recorded in RISKS R9.
+   no listing method.* → **RESOLVED (final, 2026-07-19):** A2's additive
+   `Config.models() -> tuple[str, ...]` seam landed (feat/a2-accessors); the interim
+   `chain._catalog_ids` internal-table read is deleted and a static test keeps
+   `router/` free of private Config reach. RISKS R9 retired.

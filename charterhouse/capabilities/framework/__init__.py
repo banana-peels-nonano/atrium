@@ -8,7 +8,7 @@ type per rule across seams).
 """
 
 from charterhouse.capabilities.framework.capability import Capability, assemble_messages
-from charterhouse.capabilities.framework.critic import CHECKLIST_MODEL, Critic, family
+from charterhouse.capabilities.framework.critic import CHECKLIST_MODEL, Critic
 from charterhouse.capabilities.framework.harness_opencode import (
     GENERATED_STAMP,
     generate_opencode,
@@ -56,7 +56,6 @@ __all__ = [
     "WorkflowResult",
     "WorkflowSpec",
     "assemble_messages",
-    "family",
     "generate_opencode",
     "load_capability_spec",
     "load_capability_specs",

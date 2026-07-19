@@ -21,10 +21,10 @@ from charterhouse.capabilities.framework import (
     UnknownWorkflow,
     WorkflowRegistry,
     WorkflowResult,
-    family,
     generate_opencode,
     load_capability_spec,
 )
+from charterhouse.contracts.config_types import default_family
 from charterhouse.contracts.events import AUTHORIZATION_REQUIRED, EventType
 from charterhouse.contracts.state import State, Venture
 from charterhouse.memory import ScopeViolation
@@ -211,16 +211,39 @@ def test_checkpoint_failure_leaves_no_partial_state(tmp_path):
 
 def test_critic_tier1_diff_family(tmp_path):
     """INV-WF-2: producer family "llama", critic route lands "deepseek" → tier 1, the
-    critic model recorded; the family fn is correct over the fixture catalog."""
+    critic model recorded; the canonical derivation (contracts ``default_family`` — the
+    ONE home, feat/a2-accessors) is correct over the fixture catalog ids."""
     s = a8.make_stack(tmp_path)  # ROUTES: critic → deepseek-chat-free
     result = s.workflow.run(State.CAPTURED, s.venture)
     assert result.critic_tier == 1
     assert result.critique.tier == 1
     assert result.critique.model == "deepseek-chat-free"
-    assert family("llama3-local") == "llama" == family("llama3-big")
-    assert family("deepseek-chat-free") == "deepseek"
-    assert family("gemini-flash") == "gemini"
-    assert family("claude-sonnet") == "claude"
+    assert default_family("llama3-local") == "llama" == default_family("llama3-big")
+    assert default_family("deepseek-chat-free") == "deepseek"
+    assert default_family("gemini-flash") == "gemini"
+    assert default_family("claude-sonnet") == "claude"
+
+
+def test_critic_family_from_catalog_field(tmp_path):
+    """Capabilities RISKS R3 retired (founder follow-up at the A8 gate): the tier
+    decision follows the CATALOG's ``Model.family`` field, not an id parse — ids chosen
+    to disagree with their declared families in both directions."""
+    # Same declared family behind unlike ids: an id-parse would say tier 1; the
+    # catalog says same family → tier 2.
+    models = {mid: dict(entry) for mid, entry in a8.MODELS.items()}
+    models["llama3-local"]["family"] = "shared-fam"
+    models["deepseek-chat-free"]["family"] = "shared-fam"
+    s = a8.make_stack(tmp_path / "samefam", models=models)
+    assert s.workflow.run(State.CAPTURED, s.venture).critic_tier == 2
+
+    # Different declared families behind like-prefixed ids: an id-parse would say
+    # tier 2; the catalog says different families → tier 1.
+    models2 = {mid: dict(entry) for mid, entry in a8.MODELS.items()}
+    models2["llama3-local"]["family"] = "fam-a"
+    models2["llama3-big"]["family"] = "fam-b"
+    s2 = a8.make_stack(tmp_path / "difffam", models=models2,
+                       routes=a8.ROUTES_SAMEFAM)  # critic → llama3-big
+    assert s2.workflow.run(State.CAPTURED, s2.venture).critic_tier == 1
 
 
 def test_critic_tier2_same_family_diff_model(tmp_path):

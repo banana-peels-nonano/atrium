@@ -8,31 +8,29 @@ tier 3 — the critic call exhausts its bounded retries (``RouterError``) OR ans
 the SAME model that produced (self-critique refused) → the deterministic checklist
 (pure function; no LLM; ALWAYS available — critique exhaustion is degrade, not failure).
 
-Family derivation (IMPLEMENTATION §6.3): the model id's leading alphabetic token,
-lowercased (``claude-sonnet``→``claude``, ``llama3.1-8b-local``→``llama``). Isolated in
-``family`` pending an additive ``Model.family`` field (A2 cross-note, RISKS R3).
+Family lookup (RISKS R3 RETIRED, founder follow-up at the A8 gate): the family comes
+from the CATALOG's additive ``Model.family`` field via an injected ``family_of``
+callable (the wiring passes ``lambda mid: config.get_model(mid).family``). No id
+parsing happens here anymore — the canonical derivation lives ONLY in
+``contracts.config_types.default_family``, which S3's loader uses to default the field
+and which serves as this module's standalone fallback when no lookup is wired.
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 
+from charterhouse.contracts.config_types import default_family
 from charterhouse.router.types import RouterError
 
 from charterhouse.capabilities.framework.types import Artifact, CapabilitySpec, Critique
 
-__all__ = ["Critic", "family", "checklist", "CHECKLIST_MODEL"]
+__all__ = ["Critic", "checklist", "CHECKLIST_MODEL"]
 
 CHECKLIST_MODEL = "deterministic-checklist"
 
-_FAMILY_RE = re.compile(r"[A-Za-z]+")
 _MARKER_RE = re.compile(r"\b(TODO|FIXME|XXX)\b")
-
-
-def family(model_id: str) -> str:
-    """The model id's leading alphabetic token, lowercased (deterministic)."""
-    m = _FAMILY_RE.match(model_id)
-    return m.group(0).lower() if m else model_id.lower()
 
 
 def checklist(artifact: Artifact, spec: CapabilitySpec | None) -> Critique:
@@ -78,10 +76,14 @@ class Critic:
     """The one CRITIQUE path. Constructed with the frozen ``LLMClient`` (S8); the
     critic route is Config's ``critic`` role (INV-ROUTE-1 — no model choice here)."""
 
-    def __init__(self, llm, *, role: str = "critic", retries: int = 2) -> None:  # noqa: ANN001
+    def __init__(self, llm, *, role: str = "critic", retries: int = 2,
+                 family_of: Callable[[str], str] | None = None) -> None:  # noqa: ANN001
         self._llm = llm
         self._role = role
         self._retries = max(1, retries)
+        # Additive seam (docs/43 §7): the catalog family lookup. None = standalone
+        # fallback to the canonical contracts derivation (never a local parse).
+        self._family_of = family_of if family_of is not None else default_family
 
     def critique(self, artifact: Artifact,
                  spec: CapabilitySpec | None = None) -> Critique:
@@ -97,6 +99,7 @@ class Critic:
         if response is None or response.model == artifact.model:
             # Router exhausted, or self-critique refused → the deterministic floor.
             return checklist(artifact, spec)
-        tier = 1 if family(response.model) != family(artifact.model) else 2
+        tier = (1 if self._family_of(response.model) != self._family_of(artifact.model)
+                else 2)
         return Critique(verdict="review", findings=(response.text,), tier=tier,
                         model=response.model)

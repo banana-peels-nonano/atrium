@@ -116,5 +116,7 @@ critic_tier, event_id, capability, model}` · errors `FrameworkError` / `SpecInv
   generators (claude-code/aider) beside `generate_opencode`.
 - **Internal/free to change:** beat method decomposition on `Workflow`
   (`prepare/produce_beat/critique_beat/checkpoint` — exposed for tests/S12 but not
-  frozen), retry-loop internals, family-derivation regex, checklist rule set, generator
-  file layout, message-assembly template.
+  frozen), retry-loop internals, the `family_of` catalog-lookup wiring (since
+  feat/a2-accessors the tier check reads the additive `Model.family` field; the
+  canonical default derivation lives in `contracts.default_family`), checklist rule
+  set, generator file layout, message-assembly template.

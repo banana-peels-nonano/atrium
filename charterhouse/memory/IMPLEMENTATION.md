@@ -101,10 +101,11 @@ No "guess/continue" path exists; `retrieve` never returns a partial WorkingSet.
 
 ## 6. Open questions → RESOLVED
 1. **Where do the "tunable via config" ranking weights live?** The frozen Config surface
-   (docs/40 §1) has no memory accessor, and S3 is merged. RESOLVED: weights are a typed
-   frozen `RetrievalWeights` **injected at wiring** with docs/33-shaped defaults; a future
-   **additive** `Config.memory` accessor can feed it (cross-note to A2 — same pattern as
-   router RISKS R9 `Config.models()`). No frozen seam is touched.
+   (docs/40 §1) had no memory accessor at A7 time; the interim answer was injection with
+   code defaults. **RESOLVED (final, 2026-07-19, feat/a2-accessors):** the additive
+   `Config.memory` accessor landed — routes.yaml's committed `memory:` block (docs/33
+   values, strict-key validated) flows through `RetrievalWeights.from_config` at wiring.
+   The injection seam is unchanged (no frozen surface touched); RISKS R9 retired.
 2. **Doctrine source & the empty-doctrine state.** RESOLVED: doctrine text is read from
    an injected `doctrine_path` (default `vault/memory/DOCTRINE.md`, docs/23 vault map);
    a missing/empty file is the legitimate pre-doctrine factory state → doctrine `""`,

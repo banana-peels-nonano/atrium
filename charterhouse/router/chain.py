@@ -65,8 +65,9 @@ def build_chain(config: Config, role: str, require: Require, tier_ceiling: str) 
 
     # The deterministic free/local degrade extension (INV-ROUTE-2): catalog models on a
     # free tier AND a local provider, sorted by id, minus what the route already lists.
+    # Catalog listing via the additive Config.models() seam (RISKS R9 retired).
     extension = sorted(
-        mid for mid in _catalog_ids(config)
+        mid for mid in config.models()
         if mid not in configured
         and config.get_model(mid).tier == "free" and is_local(mid)
         and meets_constraints(mid)
@@ -90,10 +91,3 @@ def build_chain(config: Config, role: str, require: Require, tier_ceiling: str) 
             f"(min_ctx={min_ctx}, needs_tools={needs_tools}, needs_web={needs_web}, "
             f"tier_ceiling={tier_ceiling!r})")
     return ChainPlan(candidates=candidates, pii_excluded=pii_excluded)
-
-
-def _catalog_ids(config: Config) -> tuple[str, ...]:
-    """All model ids in the catalog. Config's frozen surface has no listing seam yet, so
-    this is the ONE sanctioned read of its internal table (RISKS R9; IMPLEMENTATION §6.7
-    — replaced by A2's additive ``Config.models()`` when it lands)."""
-    return tuple(sorted(config._models))  # noqa: SLF001 — see RISKS R9

@@ -100,12 +100,14 @@ No "guess/continue" path; the runner never returns a partial `WorkflowResult`.
    the dependency edge, which docs/50 shows for build ordering (IF-4 before IF-5). The
    anti-coupling test pins it: `capabilities/` imports neither `lifecycle/` nor
    `governance/`.
-3. **Model "family" derivation.** No `family` field exists on the frozen `Model` shape.
-   RESOLVED: family = the model id's leading alphabetic token, lowercased
-   (`claude-sonnet`→`claude`, `gemini-2.0-flash`→`gemini`, `llama3.1-8b-local`→`llama`,
-   `deepseek-chat-free`→`deepseek`) — deterministic over the committed catalog.
-   Cross-note to A2: an additive `Model.family` field would harden this (router-R9
-   pattern); the derivation is isolated in one function pending it.
+3. **Model "family" derivation.** No `family` field existed on the frozen `Model`
+   shape at A8 time; the interim answer was an id parse isolated in `critic.py`.
+   **RESOLVED (final, 2026-07-19, feat/a2-accessors — founder follow-up at the A8
+   gate):** the additive `Model.family` field landed; the tier decision uses the
+   injected `family_of` catalog lookup (`Workflow(..., family_of=...)` →
+   `Critic(..., family_of=...)`, wiring passes `config.get_model(mid).family`).
+   The critic's parse is deleted; the canonical default derivation lives only in
+   `contracts.config_types.default_family` (S3's loader defaults the field with it).
 4. **When is the critic tier knowable?** Only AFTER the critique call returns (tier 1
    vs 2 depends on which model answered). RESOLVED: the tier is recorded in
    `Critique.tier` + `WorkflowResult.critic_tier` + the CHECKPOINT event payload. The

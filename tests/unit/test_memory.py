@@ -486,3 +486,18 @@ def test_ollama_embedder_local_shape(tmp_path):
 
     from charterhouse.memory import embeddings as module
     assert module.__all__ == ["Embeddings", "OllamaEmbedder", "EmbedFailed"]
+
+
+# --- RISKS R9 retirement (feat/a2-accessors) ----------------------------------------------
+
+
+def test_retrieval_weights_from_config():
+    """Memory RISKS R9 retired: ``RetrievalWeights.from_config`` builds the weights from
+    S3's additive ``Config.memory`` block (``MemoryConfig``), field-for-field; defaults
+    round-trip exactly."""
+    from charterhouse.contracts.config_types import MemoryConfig
+
+    assert RetrievalWeights.from_config(MemoryConfig()) == RetrievalWeights()
+    tuned = RetrievalWeights.from_config(MemoryConfig(w_semantic=0.9, max_k=4))
+    assert tuned == RetrievalWeights(w_semantic=0.9, max_k=4)
+    assert tuned.w_tag == 0.2  # untouched default flows through

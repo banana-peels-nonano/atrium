@@ -1,13 +1,27 @@
 # routes.yaml — the behavioral defaults (docs/25 §2/§3).
-# Two top-level keys (config/IMPLEMENTATION §6 resolution — docs/31 lists no separate
+# Three top-level keys (config/IMPLEMENTATION §6 resolution — docs/31 lists no separate
 # budgets file; docs/25 §2 says profiles override "routes/budgets"):
 #   budgets: the default founder budget envelope (docs/40 §1).
 #   routes:  role -> {primary, fallback[], min_ctx?, needs_tools?, needs_web?}.
+#   memory:  the S9 retrieval/consolidation tuning block (docs/33; additive docs/43 §7;
+#            every key optional — absent keys keep the frozen defaults; base-only,
+#            not profile-overridable yet).
 # The default routes are all FREE-tier (zero-paid posture, docs/20); profiles reroute.
 budgets:
   monthly_usd: 20.0
   on_exceeded: degrade
   send_daily: 40
+memory:
+  w_semantic: 0.5
+  w_tag: 0.2
+  w_recency: 0.15
+  w_confidence: 0.15
+  w_segment: 0.1
+  half_life_active: 30.0
+  dup_threshold: 0.995
+  retire_below: 0.2
+  promote_min_ventures: 3
+  max_k: 16
 routes:
   reasoning:
     primary: llama-3.3-70b-groq

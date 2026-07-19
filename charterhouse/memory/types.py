@@ -110,6 +110,15 @@ class RetrievalWeights:
     # store is never dumped into a prompt" (docs/33) holds even for an absurd k.
     max_k: int = 16
 
+    @classmethod
+    def from_config(cls, memory_config) -> "RetrievalWeights":  # noqa: ANN001
+        """**Additive** (docs/43 §7; RISKS R9): build the weights from S3's
+        ``Config.memory`` block (``contracts.config_types.MemoryConfig`` — the shapes
+        mirror field-for-field). The wiring seam IMPLEMENTATION §6.1 promised."""
+        from dataclasses import asdict
+
+        return cls(**asdict(memory_config))
+
 
 # --- Error taxonomy (fail closed, docs/61 §INV-FAILCLOSED) ---------------------------------
 

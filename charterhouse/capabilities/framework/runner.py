@@ -52,7 +52,8 @@ class Workflow:
 
     def __init__(self, registry: WorkflowRegistry, llm, memory: Memory,  # noqa: ANN001
                  security: Security, ledger: Ledger, vault_dir: str | Path,
-                 actor: str = "system") -> None:
+                 actor: str = "system",
+                 family_of=None) -> None:  # noqa: ANN001 — additive (docs/43 §7)
         self._registry = registry
         self._memory = memory
         self._security = security
@@ -61,6 +62,10 @@ class Workflow:
         self._actor = actor
         self._capability = Capability(llm)
         self._llm = llm
+        # Additive seam (feat/a2-accessors): the catalog Model.family lookup the wiring
+        # supplies (`lambda mid: config.get_model(mid).family`) — INV-WF-2's cross-family
+        # check follows the catalog, not an id parse (capabilities RISKS R3 retired).
+        self._family_of = family_of
 
     # --- the frozen surface (IF-5) ------------------------------------------------------
 
@@ -111,7 +116,8 @@ class Workflow:
 
     def critique_beat(self, cap_input: CapInput, artifact: Artifact) -> Critique:
         """CRITIQUE via the INV-WF-2 ladder — never fails the run (tier 3 floor)."""
-        critic = Critic(self._llm, retries=max(1, cap_input.spec.retries))
+        critic = Critic(self._llm, retries=max(1, cap_input.spec.retries),
+                        family_of=self._family_of)
         return critic.critique(artifact, cap_input.spec.capability)
 
     def checkpoint(self, spec: WorkflowSpec, venture: Venture, artifact: Artifact,

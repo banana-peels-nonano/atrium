@@ -15,10 +15,17 @@ from pathlib import Path
 
 import yaml
 
-from charterhouse.contracts.config_types import Budgets, Model, Provider, Route
+from charterhouse.contracts.config_types import (
+    Budgets,
+    MemoryConfig,
+    Model,
+    Provider,
+    Route,
+)
 
 from charterhouse.config.schema import (
     parse_budgets,
+    parse_memory,
     parse_model,
     parse_provider,
     parse_route,
@@ -85,9 +92,12 @@ def resolve(
     config_dir: Path,
     profile: str | None,
     overrides: Mapping | None,
-) -> tuple[dict[str, Provider], dict[str, Model], dict[str, Route], Budgets, str]:
-    """The full pipeline → ``(providers, models, routes, budgets, active_profile)`` with
-    precedence applied (docs/25 §3: overrides > profile > routes default > base)."""
+) -> tuple[dict[str, Provider], dict[str, Model], dict[str, Route], Budgets,
+           MemoryConfig, str]:
+    """The full pipeline → ``(providers, models, routes, budgets, memory,
+    active_profile)`` with precedence applied (docs/25 §3: overrides > profile >
+    routes default > base). ``memory`` is the additive docs/33 tuning block — base
+    routes.yaml only for now (profile overlay is a later additive step, documented)."""
     config_dir = Path(config_dir)
 
     providers = {pid: parse_provider(pid, raw, file="providers.yaml")
@@ -102,6 +112,8 @@ def resolve(
         if "budgets" in routes_doc else None
     if base_budgets is None:
         raise LocatedError("missing required key 'budgets'", file="routes.yaml")
+    memory = parse_memory(routes_doc["memory"], file="routes.yaml") \
+        if "memory" in routes_doc else MemoryConfig()
 
     routes = base_routes
     budgets = base_budgets
@@ -130,4 +142,4 @@ def resolve(
     # INV-CFG is enforced on the fully-resolved tables (a profile/override cannot smuggle
     # in a dangling reference either).
     cross_reference(routes, models, providers)
-    return providers, models, routes, budgets, active_profile
+    return providers, models, routes, budgets, memory, active_profile

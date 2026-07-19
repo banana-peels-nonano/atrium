@@ -163,12 +163,14 @@ def seed_captured(ledger: Ledger, vid: str = VID, codename: str = "pods") -> Non
 
 
 def make_stack(tmp_path: Path, *, routes: dict | None = None,
+               models: dict | None = None,
                transports: dict | None = None, ledger: Ledger | None = None,
                security: Security | None = None, llm=None,  # noqa: ANN001
                state: State = State.CAPTURED, seed: bool = True) -> SimpleNamespace:
     """(workflow, llm, ledger, memory, security, transports, venture, spec, vault_dir)
     over the fully live stack. Override any seam per test."""
-    cfg_dir = a2.write_config(tmp_path / "cfg", providers=PROVIDERS, models=MODELS,
+    cfg_dir = a2.write_config(tmp_path / "cfg", providers=PROVIDERS,
+                              models=models if models is not None else MODELS,
                               routes=routes if routes is not None else ROUTES,
                               profiles={"free": {}}, budgets=BUDGETS)
     config = Config.load(cfg_dir, profile="free")
@@ -186,7 +188,8 @@ def make_stack(tmp_path: Path, *, routes: dict | None = None,
     mem = a7.make_memory(tmp_path, ledger=ledger)
     spec = workflow_spec()
     registry = WorkflowRegistry({state: spec})
-    workflow = Workflow(registry, the_llm, mem.memory, security, ledger, vault_dir)
+    workflow = Workflow(registry, the_llm, mem.memory, security, ledger, vault_dir,
+                        family_of=lambda mid: config.get_model(mid).family)
     if seed:
         seed_captured(ledger)
     venture = Venture(id=VID, codename="pods", state=state, active_time_accum=10)

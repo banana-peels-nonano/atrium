@@ -14,7 +14,13 @@ from collections.abc import Mapping
 from pathlib import Path
 from types import MappingProxyType
 
-from charterhouse.contracts.config_types import Budgets, Model, Provider, Route
+from charterhouse.contracts.config_types import (
+    Budgets,
+    MemoryConfig,
+    Model,
+    Provider,
+    Route,
+)
 
 from charterhouse.config.loader import resolve
 from charterhouse.config.types import (
@@ -36,6 +42,7 @@ class Config:
         routes: Mapping[str, Route],
         budgets: Budgets,
         profile: str,
+        memory: MemoryConfig | None = None,
     ) -> None:
         # Read-only views; the frozen dataclass values are already immutable.
         self._providers = MappingProxyType(dict(providers))
@@ -43,16 +50,17 @@ class Config:
         self._routes = MappingProxyType(dict(routes))
         self._budgets = budgets
         self._profile = profile
+        self._memory = memory if memory is not None else MemoryConfig()
 
     @classmethod
     def load(cls, config_dir: str | Path, profile: str | None = None,
              overrides: Mapping | None = None) -> "Config":
         """Parse + validate + cross-ref (INV-CFG) + apply precedence + freeze. Located
         error on any malformed/dangling/unknown input; never a partial Config."""
-        providers, models, routes, budgets, active = resolve(
+        providers, models, routes, budgets, memory, active = resolve(
             Path(config_dir), profile, overrides)
         return cls(providers=providers, models=models, routes=routes,
-                   budgets=budgets, profile=active)
+                   budgets=budgets, profile=active, memory=memory)
 
     def get_route(self, role: str) -> Route:
         """Resolved route for ``role`` under the active profile. ``UnknownRole`` if absent."""
@@ -75,6 +83,19 @@ class Config:
             return self._providers[id]
         except KeyError:
             raise UnknownProvider(f"no provider {id!r} in providers.yaml") from None
+
+    def models(self) -> tuple[str, ...]:
+        """**Additive** (docs/43 §7; router RISKS R9): every model id in the catalog,
+        sorted — the frozen listing seam the router's degrade extension reads instead
+        of Config's internal table. Ids only; shapes come from ``get_model``."""
+        return tuple(sorted(self._models))
+
+    @property
+    def memory(self) -> MemoryConfig:
+        """**Additive** (docs/43 §7; memory RISKS R9): the S9 retrieval/consolidation
+        tuning block from routes.yaml's optional ``memory:`` key (docs/33 defaults when
+        absent). Feeds ``RetrievalWeights.from_config`` at wiring."""
+        return self._memory
 
     @property
     def profile(self) -> str:

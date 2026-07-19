@@ -55,15 +55,19 @@ PROFILES: dict = {
 
 def write_config(root: Path, *, providers: dict | None = None, models: dict | None = None,
                  routes: dict | None = None, budgets: dict | None = None,
-                 profiles: dict | None = None) -> Path:
+                 profiles: dict | None = None, memory: dict | None = None) -> Path:
     """Write a full config dir under ``root`` and return it. Any table can be overridden
-    to construct a failure fixture."""
+    to construct a failure fixture. ``memory`` (optional) becomes routes.yaml's additive
+    ``memory:`` block (docs/33 tuning; absent = defaults)."""
     cfg = root / "config"
     (cfg / "profiles").mkdir(parents=True, exist_ok=True)
     _dump(cfg / "providers.yaml", providers if providers is not None else PROVIDERS)
     _dump(cfg / "models.yaml", models if models is not None else MODELS)
-    _dump(cfg / "routes.yaml", {"budgets": budgets if budgets is not None else BUDGETS,
-                                "routes": routes if routes is not None else ROUTES})
+    routes_doc: dict = {"budgets": budgets if budgets is not None else BUDGETS,
+                        "routes": routes if routes is not None else ROUTES}
+    if memory is not None:
+        routes_doc["memory"] = memory
+    _dump(cfg / "routes.yaml", routes_doc)
     for name, body in (profiles if profiles is not None else PROFILES).items():
         _dump(cfg / "profiles" / f"{name}.yaml", body)
     return cfg

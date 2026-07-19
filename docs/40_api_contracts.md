@@ -7,11 +7,16 @@
 ## 1. Config (S3)
 ```
 Config.get_route(role: str) -> Route            # {primary, fallback[], min_ctx?, needs_tools?, needs_web?}
-Config.get_model(id: str) -> Model              # {provider, ctx, price_in, price_out, tier, good_at[]}
+Config.get_model(id: str) -> Model              # {provider, ctx, price_in, price_out, tier, good_at[], family}
 Config.get_provider(id: str) -> Provider        # {base_url, key_env, kind}
 Config.profile -> str                           # active profile name
 Config.budgets -> Budgets                        # {monthly_usd, on_exceeded, send_daily}
+Config.models() -> tuple[id, ...]                # additive (43 §7): sorted catalog listing
+Config.memory -> MemoryConfig                    # additive (43 §7): S9 tuning block (33)
 # INV-CFG enforced at load: every route model exists in models.
+# Additive v1 (43 §7, 2026-07-19): models()/memory accessors + Model.family (defaulted
+# from the id by the loader; explicit models.yaml key wins) — consumers: S8 degrade
+# listing, S9 RetrievalWeights wiring, S10 cross-family critic check. No bump.
 ```
 
 ## 2. Ledger & Registry (S4)
