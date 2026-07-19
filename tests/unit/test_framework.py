@@ -404,10 +404,14 @@ def test_spec_loader_missing_literal_refused(tmp_path, literal):
         load_capability_spec(path)
 
 
-def test_spec_loader_empty_stub_refused(repo_root):
-    """The Phase-0 stubs in agents/ fail loudly, never silently (RISKS R7)."""
+def test_spec_loader_empty_stub_refused(tmp_path):
+    """An empty/stub spec file fails loudly, never silently (RISKS R7). (Originally
+    pinned against the repo's Phase-0 agents/ stubs; A9 filled those — the fail-loud
+    behavior is pinned here against an empty fixture instead.)"""
+    stub = tmp_path / "empty.agent.md"
+    stub.write_text("# empty -- agent stub\n", encoding="utf-8")
     with pytest.raises(SpecInvalid):
-        load_capability_spec(repo_root / "agents" / "scout.agent.md")
+        load_capability_spec(stub)
 
 
 def test_opencode_generator_deterministic(tmp_path):
