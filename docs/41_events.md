@@ -63,6 +63,7 @@ Grouped; payload fields listed. Adding a type is a versioned, additive change (`
 - `alumni_transition` — {to: SCALING|HARVEST|EXITED}
 - `consolidate` — {merged, retired, promoted} *(reversible view; never edits ledger; INV-MEM-3)*
 - `lesson_written` — {lesson_id, tags, confidence}
+- `artifact_produced` — {artifact_ref, capability, critic_tier} *(a workflow CHECKPOINT's artifact record; state-neutral — never carries from/to_state; ADDITIVE 2026-07-19 per §2's evolution rule, with S12's real state→workflow table)*
 
 ### System & telemetry
 - `pause` / `resume` — {reason}  *(freezes/restarts active-time; INV-SM-3)*

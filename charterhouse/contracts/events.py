@@ -66,6 +66,10 @@ class EventType(str, Enum):
     ALUMNI_TRANSITION = "alumni_transition"
     CONSOLIDATE = "consolidate"
     LESSON_WRITTEN = "lesson_written"
+    # Additive (docs/43 §7, feat/a10-conductor; docs/41 §2 updated same-PR): a workflow
+    # CHECKPOINT's artifact record — state-neutral by construction (never carries
+    # to_state; replay-inert). Payload: {artifact_ref, capability, critic_tier}.
+    ARTIFACT_PRODUCED = "artifact_produced"
     # System & telemetry
     PAUSE = "pause"
     RESUME = "resume"
