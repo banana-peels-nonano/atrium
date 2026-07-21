@@ -1,7 +1,8 @@
 # Charter House — local CI (the 10 merge gates of docs/63).
-# Run before every merge to `main`. Exit non-zero if any active gate fails.
-# Gates needing subsystems that don't exist yet are PLACEHOLDERs (clearly marked),
-# to be activated as their subsystems land — the framework is wired now (Phase 0).
+# Run before every merge to `main`. Exit non-zero if any gate fails.
+# ALL TEN GATES ARE LIVE (Phase-7 exit hardening, 2026-07-22): the last four
+# placeholders (1 architecture-contracts, 5 anti-coupling, 9 ownership,
+# 10 determinism) activated once every subsystem was real.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
@@ -14,7 +15,6 @@ function Gate($n, $name, [scriptblock]$check) {
     try { & $check; Write-Host " PASS" -ForegroundColor Green }
     catch { Write-Host " FAIL" -ForegroundColor Red; $script:fail += "$n $name -- $($_.Exception.Message)" }
 }
-function Skip($n, $name, $why) { Write-Host "[gate $n] $name -- PLACEHOLDER ($why)" -ForegroundColor Yellow }
 
 # 4 & 8: Tests pass + acceptance criteria (structure test = A0 acceptance).
 Gate 4 'tests pass (pytest)' { & $py -m pytest -q; if ($LASTEXITCODE -ne 0) { throw "pytest failed" } }
@@ -39,11 +39,24 @@ Gate 2 'lifecycle invariants (INV-SM-*)' {
     if ($LASTEXITCODE -ne 0) { throw "invariant harness failed" }
 }
 
-# Placeholders — activated as the owning subsystems land:
-Skip 1  'architecture contracts / ICR check' 'no 40/API surfaces yet'
-Skip 5  'anti-coupling import check (43 §8)' 'no subsystem modules yet'
-Skip 9  'ownership check (60)'               'OWNERS map lands with 60 tooling'
-Skip 10 'determinism import check (INV-DET)' 'no LLM-path modules yet'
+# Gates 1/5/9/10 — activated at Phase-7 exit (all subsystems real, 2026-07-22):
+Gate 1 'architecture contracts / ICR drift' {
+    & $py (Join-Path $root 'scripts\architecture_check.py')
+    if ($LASTEXITCODE -ne 0) { throw "architecture-contract drift" }
+}
+Gate 5 'anti-coupling import check (43 §8)' {
+    & $py (Join-Path $root 'scripts\anticoupling_check.py')
+    if ($LASTEXITCODE -ne 0) { throw "forbidden cross-subsystem import" }
+}
+Gate 9 'ownership check (60)' {
+    $files = git ls-files
+    & $py (Join-Path $root 'scripts\ownership_check.py') @files
+    if ($LASTEXITCODE -ne 0) { throw "orphan file without an owner" }
+}
+Gate 10 'determinism import check (INV-DET)' {
+    & $py (Join-Path $root 'scripts\determinism_check.py')
+    if ($LASTEXITCODE -ne 0) { throw "deterministic module touched the LLM path" }
+}
 
 if ($fail.Count) {
     Write-Host "`nCI RED — merge blocked:" -ForegroundColor Red
