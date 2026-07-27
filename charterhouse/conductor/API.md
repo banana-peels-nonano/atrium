@@ -98,3 +98,17 @@ Security (IF-3, via the S10 CHECKPOINT path), Router (IF-2, behind S10), Memory
   commands for the remaining states.
 - **Internal/free to change:** handler decomposition, the recorder-fact payload
   builders, the wiring constructor.
+
+### Founder CLI (`conductor/cli.py`) — additive, no surface change
+A thin terminal shell over `Conductor.command` + the S13 projections for driving the
+by-hand daily + kill-day loop (docs/05). It adds NO rule and NO durable state
+(INV-COND-1/3): `build_factory` is the composition root wiring the fully live stack;
+`main` translates one CLI subcommand → one `command(name, args, token)` call, prints,
+and exits (a fresh process per invocation over the same ledger). RED commands halt
+without `--approve` (the owner's refusal, exit 1); `--approve` mints the single-use
+grant at the Gov boundary (`gov.grant`, scope == the owner's action name) and passes
+it through — minted and consumed inside the one process. v1 command set: capture,
+frame, admit, validate-evidence, validate-experiment, gate, kill, salvage,
+pause/resume, pipeline, brief, killday, gatebrief. Two fail-closed seams stand in for
+ops-phase wiring: `NoTransport` (every model transport) and `NoEmbedder` (the local
+embedder) — neither is on any v1 command path. Nothing here is a frozen surface.
