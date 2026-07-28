@@ -93,6 +93,13 @@ partial/guessed response (fail closed).
    transport takes an injected `key_lookup(name)` callable, wired by the Conductor from
    A1's env seam at composition time. S8 never touches env; `Provider.key_env` stays a
    name. No real transport ships in A6 (live smoke is optional/non-gating, docs/11 DoD).
+   → **REALIZED (feat/ops-transport, 2026-07-29):** the real HTTP transports live at the
+   wiring layer in `charterhouse/conductor/transport.py` (`HttpOpenAITransport` for Groq/
+   OpenRouter/local Ollama, `HttpGeminiTransport` for the Gemini shim), composed by
+   `build_transports(config, key_lookup)`; `key_lookup` is A1's `env.env_key_lookup`.
+   `router/` is unchanged — the adapters wrap the injected transport exactly as designed;
+   the cloud `_guard` still hard-stops PII before any transport send (proven CI-safe with a
+   fake sender; a `scripts/smoke_transport.py` runner does the non-gating live check).
 2. *Where do embeddings live (docs/11 "may be served here")?* → **RESOLVED — deferred to
    A7 Memory** as a thin local-only Ollama client (`Embeddings.embed`, docs/40 §6); S8
    ships chat-completion routing only. Embeddings MUST remain local (INV-MEM-4) — noted

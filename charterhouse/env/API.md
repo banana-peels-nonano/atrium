@@ -23,6 +23,16 @@ config_dir, models_dir, profile, ollama_host, embed_model
 - Returns the K:-disciplined path for a category (`ledger`/`vectors`/`cache`/`logs`/`weights`/`backups`/…).
 - **Errors:** an off-K: target for a growing category → refuse (fail closed). **Determinism:** pure. **Side effects:** none.
 
+### `env_key_lookup(env=None) -> Callable[[str], str]` (additive — the transport key seam)
+- Builds the `key_lookup(name) -> secret` the real model transport takes at wiring time
+  (router IMPLEMENTATION §6.1): `charterhouse/env/` is the sole place permitted to read
+  `os.environ`, so the secrets-by-name reader lives here, never in `router/` or the transport.
+- **Preconditions:** `env` defaults to the real `os.environ`; tests inject a mapping.
+- **Errors (fail closed):** a missing/empty var → `MissingEnvVar` naming ONLY the variable
+  (never the value). The returned callable performs **no logging** — a key is never printed.
+- **Side effects:** none. **Determinism:** pure over the given mapping. `Provider.key_env` stays
+  a name everywhere else; the Conductor injects this into the transport at composition time.
+
 ## Consumed surface
 - `Config.load(config_dir: Path, profile: str | None) -> Config` and `Config.get_route(role) -> Route`
   (A2, docs/40 §1) — used by preflight check #5. **Failure handling:** a Config located error is surfaced as

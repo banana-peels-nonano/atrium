@@ -7,6 +7,7 @@ No other subsystem reads environment variables — all receive an ``EnvContext``
 
 from charterhouse.contracts.env_context import EnvContext, PathKind
 
+from charterhouse.env.keys import env_key_lookup
 from charterhouse.env.preflight import REQUIRED_ROLES, REQUIRED_VARS, preflight
 from charterhouse.env.types import (
     EmbedModelMismatch,
@@ -23,6 +24,7 @@ from charterhouse.env.types import (
 __all__ = [
     "EnvContext",
     "PathKind",
+    "env_key_lookup",
     "preflight",
     "REQUIRED_ROLES",
     "REQUIRED_VARS",

@@ -112,3 +112,15 @@ frame, admit, validate-evidence, validate-experiment, gate, kill, salvage,
 pause/resume, pipeline, brief, killday, gatebrief. Two fail-closed seams stand in for
 ops-phase wiring: `NoTransport` (every model transport) and `NoEmbedder` (the local
 embedder) — neither is on any v1 command path. Nothing here is a frozen surface.
+
+### Real model transport (`conductor/transport.py`) — additive, wiring-layer
+The ops-phase HTTP client the Router's adapters wrap (router IMPLEMENTATION §6.1: composed
+at wiring, never inside S8). `HttpOpenAITransport` (Groq/OpenRouter/local Ollama, OpenAI
+`/chat/completions`) and `HttpGeminiTransport` (the Gemini shim's native `generateContent`);
+`build_transports(config, key_lookup)` composes `{provider_id: transport}` from Config
+(base_url/key_env NAMES only) + the injected `key_lookup` (A1's `env.env_key_lookup`) for
+secrets. Keys are read by name at call time, placed only in the auth header, and NEVER
+logged or put in an exception/event. Cloud PII enforcement stays in the adapter `_guard`
+(runs before `complete`) — a `contains_pii` context never reaches the transport. The real
+local embedder is A7's `OllamaEmbedder`, wired via the existing `build_factory(embedder=)`
+seam. Nothing here is a frozen surface.
