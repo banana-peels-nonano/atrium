@@ -8,11 +8,17 @@ budgets:
   monthly_usd: 0.0
   on_exceeded: degrade
   send_daily: 40
+# Providers: Gemini + Groq + local Ollama only — no OpenRouter, no 4th provider.
+# The Critic sits on a DIFFERENT family (gemini) from the llama-family producers
+# (reasoning/draft/classify on Groq-Llama + local Llama), so INV-WF-2's cross-family
+# critic verification holds at tier 1. gemini is the only non-llama free model, so the
+# Critic route carries no same-family fallback — router exhaustion degrades through the
+# framework's INV-WF-2 ladder (same-family, then the always-available tier-3 checklist).
 routes:
   reasoning:
     primary: llama-3.3-70b-groq
-    fallback: [gemini-2.0-flash, deepseek-chat-free]
+    fallback: [gemini-2.0-flash]
     min_ctx: 32000
   critic:
-    primary: deepseek-chat-free
-    fallback: [gemini-2.0-flash]
+    primary: gemini-2.0-flash
+    fallback: []
