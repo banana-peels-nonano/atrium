@@ -1,6 +1,13 @@
 # profiles/free.yaml — the default zero-cost posture (docs/20): free cloud tiers + local
 # embeddings only, no paid dependency. Reaffirms the free-tier routing defaults so a
-# `free` load is explicit and self-documenting. Budgets inherit the routes.yaml default.
+# `free` load is explicit and self-documenting. The monthly cap is $0, so the router's
+# budget guard (router/budget.py tier_ceiling: spend >= 0.8 * monthly_usd => "free") sits
+# at/over threshold from the first call and hard-refuses every paid-tier model — defense
+# in depth atop the already-all-free routes. (send_daily kept at the base 40; unrelated.)
+budgets:
+  monthly_usd: 0.0
+  on_exceeded: degrade
+  send_daily: 40
 routes:
   reasoning:
     primary: llama-3.3-70b-groq
