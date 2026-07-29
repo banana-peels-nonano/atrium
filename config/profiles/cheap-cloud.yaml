@@ -4,7 +4,7 @@
 routes:
   reasoning:
     primary: claude-sonnet
-    fallback: [llama-3.3-70b-groq, gemini-2.0-flash]
+    fallback: [llama-3.3-70b-versatile, gemini-2.0-flash]
     min_ctx: 32000
   critic:
     primary: claude-sonnet

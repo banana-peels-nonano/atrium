@@ -14,6 +14,7 @@ groq:
   key_env: GROQ_API_KEY
   kind: cloud
 gemini:
-  base_url: https://generativelanguage.googleapis.com/v1beta/openai
+  # Native Gemini REST base — the shim posts to {base}/models/{model}:generateContent.
+  base_url: https://generativelanguage.googleapis.com/v1beta
   key_env: GEMINI_API_KEY
   kind: cloud

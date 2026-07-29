@@ -4,7 +4,7 @@
 routes:
   reasoning:
     primary: llama3.1-8b-local
-    fallback: [llama-3.3-70b-groq]
+    fallback: [llama-3.3-70b-versatile]
     min_ctx: 8000
   classify:
     primary: llama3.1-8b-local

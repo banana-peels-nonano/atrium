@@ -62,11 +62,11 @@ def test_openai_builds_request_and_parses_rawresult():
     t = HttpOpenAITransport("https://api.groq.com/openai/v1",
                             env_key_lookup({"GROQ_API_KEY": GROQ}), "GROQ_API_KEY",
                             send=fake)
-    raw = t.complete("llama-3.3-70b-groq", [{"role": "user", "content": "hi"}], None, 128)
+    raw = t.complete("llama-3.3-70b-versatile", [{"role": "user", "content": "hi"}], None, 128)
     call = fake.calls[0]
     assert call["url"] == "https://api.groq.com/openai/v1/chat/completions"
     assert call["headers"]["Authorization"] == "Bearer " + GROQ
-    assert call["body"]["model"] == "llama-3.3-70b-groq"
+    assert call["body"]["model"] == "llama-3.3-70b-versatile"
     assert call["body"]["messages"] == [{"role": "user", "content": "hi"}]
     assert call["body"]["max_tokens"] == 128
     assert raw["text"] == "hello there"
@@ -87,7 +87,7 @@ def test_openai_missing_key_refuses_before_any_send():
     t = HttpOpenAITransport("https://api.groq.com/openai/v1",
                             env_key_lookup({}), "GROQ_API_KEY", send=fake)
     with pytest.raises(MissingEnvVar):
-        t.complete("llama-3.3-70b-groq", [{"role": "user", "content": "hi"}])
+        t.complete("llama-3.3-70b-versatile", [{"role": "user", "content": "hi"}])
     assert fake.count == 0  # no key => nothing leaves the process
 
 
@@ -97,10 +97,10 @@ def test_openai_send_failure_omits_key_and_url():
                             env_key_lookup({"GROQ_API_KEY": GROQ}), "GROQ_API_KEY",
                             send=fake)
     with pytest.raises(TransportError) as exc:
-        t.complete("llama-3.3-70b-groq", [{"role": "user", "content": "x"}])
+        t.complete("llama-3.3-70b-versatile", [{"role": "user", "content": "x"}])
     msg = str(exc.value)
     assert GROQ not in msg and "api.groq.com" not in msg
-    assert "llama-3.3-70b-groq" in msg  # the model is named; the detail is not
+    assert "llama-3.3-70b-versatile" in msg  # the model is named; the detail is not
 
 
 def test_openai_through_adapter_normalizes():
@@ -109,7 +109,7 @@ def test_openai_through_adapter_normalizes():
     t = HttpOpenAITransport(provider.base_url, env_key_lookup({"GROQ_API_KEY": GROQ}),
                             "GROQ_API_KEY", send=FakeSend(OPENAI_RESP))
     out = OpenAICompatibleAdapter(provider, t).complete(
-        "llama-3.3-70b-groq", [{"role": "user", "content": "hi"}], context=Context(text=""))
+        "llama-3.3-70b-versatile", [{"role": "user", "content": "hi"}], context=Context(text=""))
     assert out["text"] == "hello there" and out["tokens"] == {"in": 5, "out": 2}
 
 
@@ -190,3 +190,29 @@ def test_build_transports_wires_the_committed_providers():
     assert isinstance(transports["groq"], HttpOpenAITransport)
     assert isinstance(transports["gemini"], HttpGeminiTransport)
     assert isinstance(transports["ollama"], HttpOpenAITransport)
+
+
+def test_committed_free_profile_hits_real_provider_endpoints():
+    """The free-profile model ids ARE each provider's real API model string, and the wired
+    transports resolve to the providers' real endpoints (send a fake — zero network)."""
+    config = Config.load(REPO_CONFIG, "free")
+    # The model id sent to the provider is the real API string (not an internal alias).
+    assert config.get_route("reasoning").primary == "llama-3.3-70b-versatile"  # Groq's real id
+    assert config.get_model("llama-3.3-70b-versatile").provider == "groq"
+    assert config.get_route("critic").primary == "gemini-2.0-flash"  # Gemini's real id
+    assert config.get_model("gemini-2.0-flash").provider == "gemini"
+
+    lookup = env_key_lookup({"GROQ_API_KEY": GROQ, "GEMINI_API_KEY": GEMINI,
+                             "OPENROUTER_API_KEY": "or55555"})
+    groq_send, gemini_send = FakeSend(OPENAI_RESP), FakeSend(GEMINI_RESP)
+
+    def route(url, headers, body, timeout):  # dispatch by host — one fake per provider
+        return (gemini_send if "generativelanguage" in url else groq_send)(
+            url, headers, body, timeout)
+
+    ts = build_transports(config, lookup, send=route)
+    ts["groq"].complete("llama-3.3-70b-versatile", [{"role": "user", "content": "hi"}])
+    ts["gemini"].complete("gemini-2.0-flash", [{"role": "user", "parts": [{"text": "hi"}]}])
+    assert groq_send.calls[0]["url"] == "https://api.groq.com/openai/v1/chat/completions"
+    assert gemini_send.calls[0]["url"] == ("https://generativelanguage.googleapis.com/"
+                                           "v1beta/models/gemini-2.0-flash:generateContent")

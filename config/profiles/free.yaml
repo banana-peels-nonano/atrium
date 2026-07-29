@@ -16,7 +16,7 @@ budgets:
 # framework's INV-WF-2 ladder (same-family, then the always-available tier-3 checklist).
 routes:
   reasoning:
-    primary: llama-3.3-70b-groq
+    primary: llama-3.3-70b-versatile
     fallback: [gemini-2.0-flash]
     min_ctx: 32000
   critic:

@@ -96,9 +96,10 @@ class HttpGeminiTransport:
     def __init__(self, base_url: str, key_lookup: Callable[[str], str],
                  key_env: str, *, send: Callable | None = None,
                  timeout: float = _TIMEOUT_S) -> None:
-        # providers.yaml carries the OpenAI-compat base (.../v1beta/openai); the native
-        # shim hits .../v1beta/models/{model}:generateContent (str strip, never regex —
-        # conductor/ is scanned for re.compile by the INV-COND-1 static test).
+        # providers.yaml carries the native Gemini base (.../v1beta); the shim hits
+        # .../v1beta/models/{model}:generateContent. A trailing /openai (Google's OpenAI-
+        # compat base) is also tolerated via removesuffix (str, never regex — conductor/
+        # is scanned for re.compile by the INV-COND-1 static test).
         self._base = base_url.rstrip("/").removesuffix("/openai")
         self._key_lookup = key_lookup
         self._key_env = key_env
@@ -128,10 +129,12 @@ _SHIM_TRANSPORTS = {"gemini": HttpGeminiTransport}
 
 
 def build_transports(config, key_lookup: Callable[[str], str],  # noqa: ANN001
-                     provider_ids=None) -> dict:
+                     provider_ids=None, *, send: Callable | None = None) -> dict:
     """Compose the router's real transports dict ``{provider_id: transport}`` from Config
     (base_url/key_env NAMES only) + the injected ``key_lookup`` for secrets. Local providers
-    (``kind == "local"``) get no auth header; ``gemini`` gets the native shim transport."""
+    (``kind == "local"``) get no auth header; ``gemini`` gets the native shim transport.
+    ``send`` is the injectable HTTP sender (tests pass a fake; the smoke's ``--debug`` passes
+    a logging wrapper) — ``None`` uses each transport's real ``urllib`` default."""
     ids = (provider_ids if provider_ids is not None
            else {config.get_model(mid).provider for mid in config.models()})
     transports: dict = {}
@@ -139,10 +142,11 @@ def build_transports(config, key_lookup: Callable[[str], str],  # noqa: ANN001
         provider: Provider = config.get_provider(pid)
         shim = _SHIM_TRANSPORTS.get(pid)
         if shim is not None:
-            transports[pid] = shim(provider.base_url, key_lookup, provider.key_env)
+            transports[pid] = shim(provider.base_url, key_lookup, provider.key_env,
+                                   send=send)
         elif provider.kind == "local":
-            transports[pid] = HttpOpenAITransport(provider.base_url)  # keyless local
+            transports[pid] = HttpOpenAITransport(provider.base_url, send=send)  # keyless
         else:
             transports[pid] = HttpOpenAITransport(
-                provider.base_url, key_lookup, provider.key_env)
+                provider.base_url, key_lookup, provider.key_env, send=send)
     return transports

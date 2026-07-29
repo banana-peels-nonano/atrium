@@ -9,7 +9,7 @@ llama3.1-8b-local:
   price_out: 0.0
   tier: free
   good_at: [draft, classify, summarize]
-llama-3.3-70b-groq:
+llama-3.3-70b-versatile:  # Groq's real API model string (docs/22; sent verbatim to the API)
   provider: groq
   ctx: 131072
   price_in: 0.0

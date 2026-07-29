@@ -24,15 +24,15 @@ memory:
   max_k: 16
 routes:
   reasoning:
-    primary: llama-3.3-70b-groq
+    primary: llama-3.3-70b-versatile
     fallback: [gemini-2.0-flash, deepseek-chat-free]
     min_ctx: 32000
   classify:
     primary: llama3.1-8b-local
-    fallback: [llama-3.3-70b-groq]
+    fallback: [llama-3.3-70b-versatile]
   draft:
     primary: llama3.1-8b-local
-    fallback: [llama-3.3-70b-groq]
+    fallback: [llama-3.3-70b-versatile]
   critic:
     primary: deepseek-chat-free
     fallback: [gemini-2.0-flash]

@@ -11,12 +11,24 @@ Checks:
 
 Requires GROQ_API_KEY, GEMINI_API_KEY, OLLAMA_HOST in the environment + Ollama running with
 the chat/embed models pulled. An unset key / unreachable endpoint is an ENV failure, not a
-code defect — reported as such.  Run:  uv run python scripts/smoke_transport.py
+code defect — reported as such.
+
+  Run:          uv run python scripts/smoke_transport.py
+  Diagnose:     uv run python scripts/smoke_transport.py --debug
+
+``--debug`` surfaces, per provider attempt, the endpoint URL, the model id being sent, and
+the HTTP status + response body (so a swallowed ProvidersExhausted shows its real cause) —
+with the API key always REDACTED (it lives only in the auth header; the URL/body never carry
+it, and provider error bodies never echo it).
 """
 
 from __future__ import annotations
 
 import tempfile
+import argparse
+import json
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from charterhouse.conductor.transport import build_transports
@@ -30,6 +42,46 @@ from charterhouse.router.types import Require
 REPO = Path(__file__).resolve().parents[1]
 PROMPT = [{"role": "user", "content": "Reply with the single word: ok"}]
 EMBED_DIMS = {"nomic-embed-text": 768}
+
+# The auth header names to REDACT in --debug output — the key value is never printed.
+_AUTH_HEADERS = ("authorization", "x-goog-api-key")
+
+
+def _sent_model(url: str, body: dict) -> str:
+    if isinstance(body, dict) and "model" in body:
+        return body["model"]  # OpenAI shape
+    if "/models/" in url and ":generateContent" in url:  # Gemini native shape
+        return url.split("/models/", 1)[1].split(":generateContent", 1)[0]
+    return "?"
+
+
+def _redacted_auth(headers) -> str:  # noqa: ANN001
+    names = [k for k in headers if k.lower() in _AUTH_HEADERS]
+    return ", ".join(f"{k}=****" for k in names) or "(none)"
+
+
+def debug_send(url, headers, body, timeout):  # noqa: ANN001
+    """A --debug HTTP sender: surfaces the endpoint URL, the model id sent, and the HTTP
+    status + response body for each attempt (the real cause the router otherwise swallows
+    into ProvidersExhausted). The API key lives only in the auth header and is REDACTED;
+    the URL/body carry no key, and provider error bodies never echo the key."""
+    print(f"[debug] POST {url}")
+    print(f"[debug]   model={_sent_model(url, body)}  auth=[{_redacted_auth(headers)}]")
+    data = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(
+        url, data=data, method="POST",
+        headers={"Content-Type": "application/json", **dict(headers)})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+            payload = json.loads(resp.read().decode("utf-8"))
+        print(f"[debug]   -> HTTP {resp.status} OK")
+        return payload
+    except urllib.error.HTTPError as exc:
+        print(f"[debug]   -> HTTP {exc.code}: {exc.read().decode('utf-8', 'replace')[:400]}")
+        raise
+    except Exception as exc:  # noqa: BLE001 — kind + message (URLError has no key)
+        print(f"[debug]   -> {type(exc).__name__}: {exc}")
+        raise
 
 
 class Spy:
@@ -64,16 +116,17 @@ def _cloud_check(router, config, key_lookup, role, want_provider, label):  # noq
             "" if prov == want_provider else f"answered on {prov}")
 
 
-def main() -> int:
+def main(debug: bool = False) -> int:
     loaded = load_env_file()  # populate the process environment from .env; names only, no values
-    print(f".env: loaded {len(loaded)} var(s)")
+    print(f".env: loaded {len(loaded)} var(s)" + ("  [debug on]" if debug else ""))
     key_lookup = env_key_lookup()
     config = Config.load(REPO / "config", "free")
     results: list[tuple[str, bool, str]] = []
 
     with tempfile.TemporaryDirectory() as tmp:
         ledger = Ledger(Path(tmp) / "ledger")
-        transports = build_transports(config, key_lookup)
+        transports = build_transports(config, key_lookup,
+                                      send=debug_send if debug else None)
         cloud_spies = {}
         for pid in ("groq", "gemini"):
             if pid in transports:
@@ -130,4 +183,9 @@ def _embed_model(key_lookup) -> str:  # noqa: ANN001
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    parser = argparse.ArgumentParser(description="Live transport smoke (free profile).")
+    parser.add_argument(
+        "--debug", action="store_true",
+        help="surface each provider attempt: endpoint URL, model id, HTTP status + "
+             "response body (the API key is always redacted)")
+    raise SystemExit(main(debug=parser.parse_args().debug))

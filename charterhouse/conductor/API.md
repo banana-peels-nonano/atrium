@@ -123,4 +123,8 @@ secrets. Keys are read by name at call time, placed only in the auth header, and
 logged or put in an exception/event. Cloud PII enforcement stays in the adapter `_guard`
 (runs before `complete`) — a `contains_pii` context never reaches the transport. The real
 local embedder is A7's `OllamaEmbedder`, wired via the existing `build_factory(embedder=)`
-seam. Nothing here is a frozen surface.
+seam. `build_transports(..., send=)` is an injectable HTTP-sender seam (tests pass a fake;
+the smoke's `--debug` passes a logging wrapper that surfaces the endpoint URL, model id, and
+HTTP status/body per attempt with the key redacted). Model ids in `config/` are each
+provider's REAL API model string (e.g. Groq `llama-3.3-70b-versatile`), sent verbatim to the
+provider. Nothing here is a frozen surface.
