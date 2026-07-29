@@ -37,6 +37,7 @@ from charterhouse.capabilities.framework import Workflow
 from charterhouse.conductor import Conductor, build_registry
 from charterhouse.conductor.types import ConductorError
 from charterhouse.config import Config
+from charterhouse.env import load_env_file
 from charterhouse.governance import Gov
 from charterhouse.ledger import Ledger
 from charterhouse.lifecycle import FactoryClock, Lifecycle
@@ -339,6 +340,7 @@ def main(argv: list[str] | None = None, *, factory=None) -> int:  # noqa: ANN001
         if not ns.data_dir:
             print("error: --data-dir is required (no factory injected)", file=sys.stderr)
             return 2
+        load_env_file()  # populate the process environment from .env at startup; no-op if absent
         factory = build_factory(ns.repo, ns.data_dir, profile=ns.profile)
 
     name, args, scope = _translate(ns)

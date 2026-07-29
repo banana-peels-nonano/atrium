@@ -33,6 +33,17 @@ config_dir, models_dir, profile, ollama_host, embed_model
 - **Side effects:** none. **Determinism:** pure over the given mapping. `Provider.key_env` stays
   a name everywhere else; the Conductor injects this into the transport at composition time.
 
+### `load_env_file(path=None, *, override=False) -> tuple[str, ...]` (additive — .env at startup)
+- Populates the process environment from a `.env` file (the nearest one found from the cwd
+  upward when `path` is omitted), so `env_key_lookup`/`preflight` see keys + paths. Under
+  `charterhouse/env/` because it WRITES the environment (env-boundary: the sole writer).
+- Uses **python-dotenv** (`python-dotenv==1.0.1`, pinned; cached to K:) — a robust `key=value`
+  parser, **not** `bash source`: backslashed Windows paths and `=`-in-values survive intact.
+- **Returns** the variable NAMES loaded, sorted — **never the values**; performs no logging,
+  so no key is ever printed. A missing file is a no-op returning `()`. Existing environment
+  variables win unless `override=True` (a real env var beats the file).
+- Wired at startup by the CLI's real boot (`conductor/cli.py`) and the live smoke runner.
+
 ## Consumed surface
 - `Config.load(config_dir: Path, profile: str | None) -> Config` and `Config.get_route(role) -> Route`
   (A2, docs/40 §1) — used by preflight check #5. **Failure handling:** a Config located error is surfaced as

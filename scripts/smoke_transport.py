@@ -21,7 +21,7 @@ from pathlib import Path
 
 from charterhouse.conductor.transport import build_transports
 from charterhouse.config import Config
-from charterhouse.env import env_key_lookup
+from charterhouse.env import env_key_lookup, load_env_file
 from charterhouse.ledger import Ledger
 from charterhouse.memory import OllamaEmbedder
 from charterhouse.router import Router
@@ -65,6 +65,8 @@ def _cloud_check(router, config, key_lookup, role, want_provider, label):  # noq
 
 
 def main() -> int:
+    loaded = load_env_file()  # populate the process environment from .env; names only, no values
+    print(f".env: loaded {len(loaded)} var(s)")
     key_lookup = env_key_lookup()
     config = Config.load(REPO / "config", "free")
     results: list[tuple[str, bool, str]] = []
