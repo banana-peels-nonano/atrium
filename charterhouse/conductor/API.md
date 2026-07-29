@@ -126,5 +126,7 @@ local embedder is A7's `OllamaEmbedder`, wired via the existing `build_factory(e
 seam. `build_transports(..., send=)` is an injectable HTTP-sender seam (tests pass a fake;
 the smoke's `--debug` passes a logging wrapper that surfaces the endpoint URL, model id, and
 HTTP status/body per attempt with the key redacted). Model ids in `config/` are each
-provider's REAL API model string (e.g. Groq `llama-3.3-70b-versatile`), sent verbatim to the
-provider. Nothing here is a frozen surface.
+provider's REAL API model string (Groq `llama-3.3-70b-versatile`, Ollama `llama3.1:8b`,
+Gemini `gemini-2.0-flash`), sent verbatim to the provider. Every request carries an explicit
+`User-Agent: charterhouse/1.0` (urllib's default UA is edge-blocked by some providers).
+Nothing here is a frozen surface.

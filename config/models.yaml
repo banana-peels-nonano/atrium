@@ -2,7 +2,7 @@
 # price_in/price_out are USD per million tokens (docs/22). tier: free | paid.
 # REMOTE-FIRST default posture (docs/20): free cloud tiers behind the Router; only
 # embeddings run locally. The `free` profile and the routes default reference free tier only.
-llama3.1-8b-local:
+"llama3.1:8b":  # Ollama's real model string (name:tag); quoted — the colon is YAML-significant
   provider: ollama
   ctx: 8192
   price_in: 0.0

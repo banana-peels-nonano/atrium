@@ -29,6 +29,9 @@ __all__ = ["HttpOpenAITransport", "HttpGeminiTransport", "TransportError",
            "build_transports"]
 
 _TIMEOUT_S = 60.0
+# An explicit User-Agent on every request — urllib's default ("Python-urllib/x.y") is
+# edge-blocked by some cloud providers (Groq via Cloudflare 1010). Not a secret.
+USER_AGENT = "charterhouse/1.0"
 
 
 class TransportError(Exception):
@@ -70,7 +73,7 @@ class HttpOpenAITransport:
 
     def complete(self, model: str, messages: list, tools: list | None = None,
                  max_tokens: int | None = None) -> dict:
-        headers = self._auth_headers()  # outside the try — a missing key is not a send fault
+        headers = {"User-Agent": USER_AGENT, **self._auth_headers()}  # UA before send
         body: dict = {"model": model, "messages": messages}
         if max_tokens is not None:
             body["max_tokens"] = max_tokens
@@ -109,7 +112,7 @@ class HttpGeminiTransport:
     def complete(self, model: str, contents: list, tools: list | None = None,
                  max_tokens: int | None = None) -> dict:
         key = self._key_lookup(self._key_env)  # by name; never logged
-        headers = {"x-goog-api-key": key}
+        headers = {"User-Agent": USER_AGENT, "x-goog-api-key": key}
         body: dict = {"contents": contents}
         if max_tokens is not None:
             body["generationConfig"] = {"maxOutputTokens": max_tokens}

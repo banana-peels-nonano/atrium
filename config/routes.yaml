@@ -28,10 +28,10 @@ routes:
     fallback: [gemini-2.0-flash, deepseek-chat-free]
     min_ctx: 32000
   classify:
-    primary: llama3.1-8b-local
+    primary: "llama3.1:8b"
     fallback: [llama-3.3-70b-versatile]
   draft:
-    primary: llama3.1-8b-local
+    primary: "llama3.1:8b"
     fallback: [llama-3.3-70b-versatile]
   critic:
     primary: deepseek-chat-free

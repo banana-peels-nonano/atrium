@@ -78,7 +78,7 @@ def test_openai_builds_request_and_parses_rawresult():
 def test_openai_local_provider_sends_no_auth_header():
     fake = FakeSend(OPENAI_RESP)
     t = HttpOpenAITransport("http://localhost:11434/v1", None, None, send=fake)
-    t.complete("llama3.1-8b-local", [{"role": "user", "content": "hi"}])
+    t.complete("llama3.1:8b", [{"role": "user", "content": "hi"}])
     assert "Authorization" not in fake.calls[0]["headers"]
 
 
@@ -175,12 +175,27 @@ def test_local_adapter_has_no_guard_and_sends():
     fake = FakeSend(OPENAI_RESP)
     OpenAICompatibleAdapter(provider, HttpOpenAITransport(
         provider.base_url, None, None, send=fake)).complete(
-        "llama3.1-8b-local", [{"role": "user", "content": "x"}],
+        "llama3.1:8b", [{"role": "user", "content": "x"}],
         context=Context(text="pii here", contains_pii=True))
     assert fake.count == 1
 
 
 # --- wiring ---------------------------------------------------------------------------------
+
+
+def test_requests_carry_a_user_agent():
+    """Every request sends an explicit User-Agent (charterhouse/1.0) — urllib's default UA
+    is edge-blocked by some cloud providers (Groq via Cloudflare 1010)."""
+    fake = FakeSend(OPENAI_RESP)
+    HttpOpenAITransport("https://api.groq.com/openai/v1",
+                        env_key_lookup({"GROQ_API_KEY": GROQ}), "GROQ_API_KEY",
+                        send=fake).complete("m", [{"role": "user", "content": "hi"}])
+    assert fake.calls[0]["headers"]["User-Agent"] == "charterhouse/1.0"
+    fake2 = FakeSend(GEMINI_RESP)
+    HttpGeminiTransport("https://generativelanguage.googleapis.com/v1beta",
+                        env_key_lookup({"GEMINI_API_KEY": GEMINI}), "GEMINI_API_KEY",
+                        send=fake2).complete("m", [{"role": "user", "parts": [{"text": "hi"}]}])
+    assert fake2.calls[0]["headers"]["User-Agent"] == "charterhouse/1.0"
 
 
 def test_build_transports_wires_the_committed_providers():
@@ -201,6 +216,10 @@ def test_committed_free_profile_hits_real_provider_endpoints():
     assert config.get_model("llama-3.3-70b-versatile").provider == "groq"
     assert config.get_route("critic").primary == "gemini-2.0-flash"  # Gemini's real id
     assert config.get_model("gemini-2.0-flash").provider == "gemini"
+    # The local roles carry Ollama's real model string (name:tag), not an internal alias.
+    assert config.get_route("classify").primary == "llama3.1:8b"
+    assert config.get_route("draft").primary == "llama3.1:8b"
+    assert config.get_model("llama3.1:8b").provider == "ollama"
 
     lookup = env_key_lookup({"GROQ_API_KEY": GROQ, "GEMINI_API_KEY": GEMINI,
                              "OPENROUTER_API_KEY": "or55555"})

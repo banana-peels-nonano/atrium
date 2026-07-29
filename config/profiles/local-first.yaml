@@ -3,15 +3,15 @@
 # when a context carries PII (contains_pii hard-blocks cloud adapters anyway, INV-PII-3).
 routes:
   reasoning:
-    primary: llama3.1-8b-local
+    primary: "llama3.1:8b"
     fallback: [llama-3.3-70b-versatile]
     min_ctx: 8000
   classify:
-    primary: llama3.1-8b-local
+    primary: "llama3.1:8b"
     fallback: []
   draft:
-    primary: llama3.1-8b-local
+    primary: "llama3.1:8b"
     fallback: []
   critic:
-    primary: llama3.1-8b-local
+    primary: "llama3.1:8b"
     fallback: [deepseek-chat-free]
