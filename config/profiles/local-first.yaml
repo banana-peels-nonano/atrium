@@ -12,6 +12,12 @@ routes:
   draft:
     primary: "llama3.1:8b"
     fallback: []
+  # Cross-family critic, all local (mirrors the free profile): qwen3:8b is family "qwen"
+  # against the llama-family producers above, so INV-WF-2 tier 1 holds offline. The old
+  # fallback (deepseek-chat-free, on OpenRouter) was a dead provider — no key, dropped from
+  # the working set — and the old primary was llama3.1:8b, the producers' own family, so
+  # swapping only the fallback would have left tier 1 same-family. llama3.1:8b stays as the
+  # local fallback: a qwen3 failure degrades the ladder to tier 2 rather than losing the critic.
   critic:
-    primary: "llama3.1:8b"
-    fallback: [deepseek-chat-free]
+    primary: "qwen3:8b"
+    fallback: ["llama3.1:8b"]

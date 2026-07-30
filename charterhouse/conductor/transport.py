@@ -2,9 +2,16 @@
 (router IMPLEMENTATION §6.1: composed at wiring time, never inside S8). Two shapes matching
 the two adapter families:
 
-- ``HttpOpenAITransport`` — Groq / OpenRouter / local Ollama (OpenAI ``/chat/completions``).
-  The OpenAI-compatible adapter is a pass-through, so THIS parses ``choices``/``usage`` into
-  the RawResult shape ``{text, tokens:{in,out}, latency_ms, tool_calls}``.
+- ``HttpOpenAITransport`` — Groq / OpenRouter / any OpenAI-shaped local server, e.g. LM
+  Studio / vLLM (OpenAI ``/chat/completions``). The OpenAI-compatible adapter is a
+  pass-through, so THIS parses ``choices``/``usage`` into the RawResult shape
+  ``{text, tokens:{in,out}, latency_ms, tool_calls}``.
+- ``HttpOllamaTransport`` — the local Ollama chat path, on Ollama's **native**
+  ``/api/chat``. Native (not the OpenAI-compat endpoint) because ``keep_alive`` is not an
+  accepted field there, and ``keep_alive: 0`` is what makes Ollama unload the model the
+  moment the response completes — zero VRAM held while the factory is idle. Same
+  ``complete`` signature + RawResult contract as the OpenAI transport, so the local
+  provider's OpenAI-compat adapter wraps it unchanged.
 - ``HttpGeminiTransport`` — the Gemini shim's native ``generateContent``. Returns the raw
   Gemini JSON (``candidates``/``usageMetadata``) with ``latency_ms`` injected, for the
   adapter's ``from_provider_response`` to normalize (do NOT parse it here).
@@ -25,10 +32,14 @@ from collections.abc import Callable, Mapping
 
 from charterhouse.contracts.config_types import Provider
 
-__all__ = ["HttpOpenAITransport", "HttpGeminiTransport", "TransportError",
-           "build_transports"]
+__all__ = ["HttpOpenAITransport", "HttpOllamaTransport", "HttpGeminiTransport",
+           "TransportError", "build_transports"]
 
 _TIMEOUT_S = 60.0
+# Ollama duration semantics: 0 = unload the model as soon as the response completes
+# (-1 would pin it in memory forever, the default is 5 minutes). Local calls therefore
+# pay a reload from disk each time — the deliberate trade for zero idle VRAM.
+_UNLOAD_IMMEDIATELY = 0
 # An explicit User-Agent on every request — urllib's default ("Python-urllib/x.y") is
 # edge-blocked by some cloud providers (Groq via Cloudflare 1010). Not a secret.
 USER_AGENT = "charterhouse/1.0"
@@ -93,6 +104,51 @@ class HttpOpenAITransport:
                 "tool_calls": ()}
 
 
+class HttpOllamaTransport:
+    """Local Ollama chat transport on the NATIVE ``/api/chat`` endpoint.
+
+    Why native rather than Ollama's OpenAI-compatible ``/chat/completions``: that endpoint's
+    accepted-field list has no ``keep_alive``, so the field would be silently dropped and the
+    model would sit in VRAM for the default 5 minutes after every call. The native endpoint
+    honours it, so each call carries ``keep_alive: 0`` and the model unloads immediately.
+
+    Keyless by construction (loopback); returns the same RawResult shape as
+    ``HttpOpenAITransport`` so the local provider's adapter needs no change.
+    """
+
+    def __init__(self, base_url: str, *, send: Callable | None = None,
+                 timeout: float = _TIMEOUT_S) -> None:
+        # providers.yaml carries the OpenAI-compat base (…:11434/v1); the native API lives
+        # one level up at …:11434/api/chat. str.removesuffix, never regex — conductor/ is
+        # scanned for re.compile by the INV-COND-1 static test.
+        self._url = base_url.rstrip("/").removesuffix("/v1") + "/api/chat"
+        self._send = send if send is not None else _http_post
+        self._timeout = timeout
+
+    def complete(self, model: str, messages: list, tools: list | None = None,
+                 max_tokens: int | None = None) -> dict:
+        headers = {"User-Agent": USER_AGENT}  # no auth header: loopback, keyless
+        body: dict = {"model": model, "messages": messages,
+                      # native /api/chat streams NDJSON unless told otherwise — the sender
+                      # parses one JSON object, so streaming must be off.
+                      "stream": False,
+                      "keep_alive": _UNLOAD_IMMEDIATELY}
+        if max_tokens is not None:
+            body["options"] = {"num_predict": max_tokens}  # native name for max_tokens
+        start = time.monotonic()
+        try:
+            raw = self._send(self._url, headers, body, self._timeout)
+        except Exception as exc:  # names the model + error KIND only — never url/body
+            raise TransportError(f"{model}: {type(exc).__name__}") from None
+        latency_ms = int((time.monotonic() - start) * 1000)
+        # Native counts; either may be absent (a fully cached prompt omits prompt_eval_count).
+        return {"text": (raw.get("message") or {}).get("content") or "",
+                "tokens": {"in": int(raw.get("prompt_eval_count", 0)),
+                           "out": int(raw.get("eval_count", 0))},
+                "latency_ms": latency_ms,
+                "tool_calls": ()}
+
+
 class HttpGeminiTransport:
     """Gemini native ``generateContent`` transport (the shim path)."""
 
@@ -134,9 +190,11 @@ _SHIM_TRANSPORTS = {"gemini": HttpGeminiTransport}
 def build_transports(config, key_lookup: Callable[[str], str],  # noqa: ANN001
                      provider_ids=None, *, send: Callable | None = None) -> dict:
     """Compose the router's real transports dict ``{provider_id: transport}`` from Config
-    (base_url/key_env NAMES only) + the injected ``key_lookup`` for secrets. Local providers
-    (``kind == "local"``) get no auth header; ``gemini`` gets the native shim transport.
-    ``send`` is the injectable HTTP sender (tests pass a fake; the smoke's ``--debug`` passes
+    (base_url/key_env NAMES only) + the injected ``key_lookup`` for secrets. ``gemini`` gets
+    the native shim transport; ``ollama`` gets the native keep_alive transport; any OTHER
+    local provider (``kind == "local"`` — LM Studio, vLLM) gets the OpenAI-compat transport
+    without an auth header. Keyed on the provider id, not on ``kind``: "local" does not imply
+    "speaks Ollama's native API". ``send`` is the injectable HTTP sender (tests pass a fake; the smoke's ``--debug`` passes
     a logging wrapper) — ``None`` uses each transport's real ``urllib`` default."""
     ids = (provider_ids if provider_ids is not None
            else {config.get_model(mid).provider for mid in config.models()})
@@ -144,7 +202,9 @@ def build_transports(config, key_lookup: Callable[[str], str],  # noqa: ANN001
     for pid in ids:
         provider: Provider = config.get_provider(pid)
         shim = _SHIM_TRANSPORTS.get(pid)
-        if shim is not None:
+        if pid == "ollama":
+            transports[pid] = HttpOllamaTransport(provider.base_url, send=send)  # keyless
+        elif shim is not None:
             transports[pid] = shim(provider.base_url, key_lookup, provider.key_env,
                                    send=send)
         elif provider.kind == "local":

@@ -8,17 +8,36 @@ budgets:
   monthly_usd: 0.0
   on_exceeded: degrade
   send_daily: 40
-# Providers: Gemini + Groq + local Ollama only — no OpenRouter, no 4th provider.
-# The Critic sits on a DIFFERENT family (gemini) from the llama-family producers
-# (reasoning/draft/classify on Groq-Llama + local Llama), so INV-WF-2's cross-family
-# critic verification holds at tier 1. gemini is the only non-llama free model, so the
-# Critic route carries no same-family fallback — router exhaustion degrades through the
-# framework's INV-WF-2 ladder (same-family, then the always-available tier-3 checklist).
+# Providers: Groq + local Ollama only — ZERO Gemini dependency on any live role.
+# Gemini's free tier is provisioned at limit 0 for this account (a permanent 429, verified
+# by the live smoke), so it is not a working provider here: it is neither a primary nor a
+# fallback hop below, since a dead hop only burns a failover attempt before exhaustion. The
+# gemini model/provider/transport stay in the catalog for the other profiles and for model
+# portability — `free` simply does not route to them.
+#
+# The Critic sits on a DIFFERENT family (local qwen3:8b, family "qwen") from the llama-family
+# producers (reasoning on Groq-Llama, draft/classify on local Llama), so INV-WF-2's
+# cross-family critic verification holds at tier 1 — now with no cloud dependency at all.
+# Its fallback keeps a LOCAL model (llama3.1:8b); that shares the producers' family, so a
+# qwen3 failure degrades the ladder to tier 2 (same-family, different model) rather than
+# losing the critic, and router exhaustion still lands on the always-available tier-3
+# checklist. Both local models are pulled in Ollama (`ollama list`).
+#
+# Reasoning keeps a single candidate: Groq is the only free provider serving >= 32k context
+# (the min_ctx below), so there is no honest fallback to name — the local 8k models are
+# filtered out by the constraint, and would be silently truncated if forced. If Groq fails,
+# the route exhausts and the framework pauses, rather than pretending a 429 is a fallback.
+# (Under a contains_pii tag the route-level min_ctx relaxes by design, so PII work still
+# degrades to the local models via the router's free/local extension.)
 routes:
   reasoning:
     primary: llama-3.3-70b-versatile
-    fallback: [gemini-2.0-flash]
+    fallback: []
     min_ctx: 32000
   critic:
-    primary: gemini-2.0-flash
-    fallback: []
+    primary: "qwen3:8b"
+    fallback: ["llama3.1:8b"]
+# NOTE — the `web` role is inherited from routes.yaml and still resolves to gemini-2.0-flash:
+# it is the ONLY catalog model with web capability, so `web` cannot be de-Gemini'd in config.
+# Nothing in v1 calls role "web", so this is inert; it needs a web-capable provider, not a
+# reroute (pinned by test_free_profile_web_role_is_the_last_gemini_dependency).

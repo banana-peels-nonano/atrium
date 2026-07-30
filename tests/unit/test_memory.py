@@ -453,9 +453,10 @@ def test_consolidate_reversible_from_ledger(tmp_path):
 
 
 def test_ollama_embedder_local_shape(tmp_path):
-    """INV-MEM-4 locality: OllamaEmbedder posts {model, prompt} to the injected local
-    transport and returns the vector; failures → EmbedFailed; and S9's embeddings
-    module surface contains NO cloud embedder."""
+    """INV-MEM-4 locality: OllamaEmbedder posts {model, prompt, keep_alive} to the injected
+    local transport and returns the vector; failures → EmbedFailed; and S9's embeddings
+    module surface contains NO cloud embedder. ``keep_alive: 0`` makes Ollama unload the
+    embed model as soon as the response completes — zero VRAM held while idle."""
     calls: list[tuple[str, dict]] = []
 
     def transport(url: str, body: dict) -> dict:
@@ -468,7 +469,8 @@ def test_ollama_embedder_local_shape(tmp_path):
     assert vec == tuple([0.1] * 8) and emb.dim == 8
     (url, body), = calls
     assert url.startswith("http://127.0.0.1:11434")
-    assert body == {"model": "nomic-embed-text", "prompt": "hello factory"}
+    assert body == {"model": "nomic-embed-text", "prompt": "hello factory",
+                    "keep_alive": 0}
 
     def broken(url: str, body: dict) -> dict:
         raise OSError("endpoint down")

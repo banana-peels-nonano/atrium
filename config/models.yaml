@@ -9,6 +9,19 @@
   price_out: 0.0
   tier: free
   good_at: [draft, classify, summarize]
+"qwen3:8b":  # Ollama's real model string (name:tag); quoted — the colon is YAML-significant.
+  # family "qwen" (derived): a DIFFERENT family from every llama producer, so a local critic
+  # on this model satisfies INV-WF-2 tier 1 without any cloud dependency.
+  # ctx is the conservative locally-SERVED window, matching the llama3.1:8b convention — the
+  # model's own maximum is far larger, but Ollama serves a small default num_ctx unless the
+  # request sets options.num_ctx (a transport change, not config; not done here). Declaring
+  # the honest served figure keeps the router from sending a long prompt to be truncated.
+  provider: ollama
+  ctx: 8192
+  price_in: 0.0
+  price_out: 0.0
+  tier: free
+  good_at: [critique, reasoning, draft]
 llama-3.3-70b-versatile:  # Groq's real API model string (docs/22; sent verbatim to the API)
   provider: groq
   ctx: 131072

@@ -45,6 +45,12 @@ def _default_transport(url: str, body: dict) -> dict:  # pragma: no cover — re
         return json.loads(resp.read().decode("utf-8"))
 
 
+# Ollama duration semantics: 0 = unload the model as soon as the response completes (-1 pins
+# it forever; the default is 5 minutes). The embed model therefore holds zero VRAM while the
+# factory is idle, at the cost of a reload from disk per embed.
+_UNLOAD_IMMEDIATELY = 0
+
+
 class OllamaEmbedder:
     """``Embeddings`` over a local Ollama ``/api/embeddings`` endpoint. ``model`` is the
     pinned ``CHARTERHOUSE_EMBED_MODEL`` id (via ``EnvContext.embed_model``, never env)."""
@@ -58,9 +64,11 @@ class OllamaEmbedder:
 
     def embed(self, text: str) -> tuple[float, ...]:
         """One local embed call. Transport/shape failure → ``EmbedFailed`` (fail closed,
-        no retry loop, no cloud fallback — none exists)."""
+        no retry loop, no cloud fallback — none exists). ``keep_alive: 0`` unloads the embed
+        model immediately after the response (native endpoint field — zero idle VRAM)."""
         try:
-            data = self._transport(self._url, {"model": self._model, "prompt": text})
+            data = self._transport(self._url, {"model": self._model, "prompt": text,
+                                               "keep_alive": _UNLOAD_IMMEDIATELY})
         except Exception as exc:
             raise EmbedFailed(
                 f"local embedding endpoint failed for model {self._model!r}: "

@@ -2,16 +2,19 @@
 pytest's testpaths, so this never runs in CI). Reports OK/FAIL per role only; never prints
 keys or raw responses.
 
-Checks:
-  reasoning (Groq)  — one live call; the answering model MUST be Groq (pins the provider,
-                      so a Groq outage that fails over to Gemini reads as FAIL, not OK).
-  critic (Gemini)   — one live call; the answering model MUST be Gemini.
+Checks (each role's expected provider is READ FROM THE RESOLVED ROUTE, never hardcoded — a
+config reroute must not turn a healthy run into a false FAIL):
+  reasoning         — one live call; the answering model MUST be the route's provider (so a
+                      Groq outage that silently fails over elsewhere reads FAIL, not OK).
+  critic            — same, following wherever the critic route resolves (currently the
+                      local qwen3:8b, so this reports `critic(qwen3)`).
   embed (Ollama)    — one local embed returns a full-width vector.
   pii-block         — a contains_pii reasoning call makes ZERO cloud-transport sends.
 
-Requires GROQ_API_KEY, GEMINI_API_KEY, OLLAMA_HOST in the environment + Ollama running with
-the chat/embed models pulled. An unset key / unreachable endpoint is an ENV failure, not a
-code defect — reported as such.
+Requires OLLAMA_HOST + Ollama running with the routed chat/embed models pulled, plus an API
+key for whichever CLOUD providers the active profile's routes resolve to (a local role needs
+no key). An unset key / unreachable endpoint is an ENV failure, not a code defect — reported
+as such.
 
   Run:          uv run python scripts/smoke_transport.py
   Diagnose:     uv run python scripts/smoke_transport.py --debug
@@ -100,14 +103,46 @@ def _provider_of(config: Config, model_id: str) -> str:
     return config.get_model(model_id).provider
 
 
-def _cloud_check(router, config, key_lookup, role, want_provider, label):  # noqa: ANN001
-    """One live cloud call, pinning the answering provider. Distinguishes an ENV failure
-    (key unset) from a transport/network failure so the report reads honestly."""
-    key_env = config.get_provider(want_provider).key_env
-    try:
-        key_lookup(key_env)  # env pre-check; the value is never printed
-    except Exception:  # noqa: BLE001
-        return (label, False, f"{key_env} unset (env)")
+def expected_provider(config: Config, role: str) -> str:
+    """The provider the role SHOULD answer on — derived from the resolved route's primary,
+    never hardcoded. Rerouting a role in config (e.g. the critic from Gemini to local
+    qwen3:8b) therefore moves the expectation with it instead of reporting a false FAIL."""
+    return _provider_of(config, config.get_route(role).primary)
+
+
+def role_label(config: Config, role: str) -> str:
+    """The report label, naming the interesting fact: for a CLOUD role which vendor answered
+    (`reasoning(Groq)`), for a LOCAL role which model (`critic(qwen3)`) — the provider is
+    always ollama locally, so the model id is what distinguishes."""
+    model_id = config.get_route(role).primary
+    provider_id = _provider_of(config, model_id)
+    if config.get_provider(provider_id).kind == "local":
+        short = model_id.split(":", 1)[0]  # tag-stripped model id, e.g. qwen3:8b -> qwen3
+    else:
+        short = provider_id.title()  # groq -> Groq
+    return f"{role}({short})"
+
+
+def cloud_provider_ids(config: Config, transports) -> tuple[str, ...]:  # noqa: ANN001
+    """Every wired provider whose kind is NOT local, sorted — the transports the pii-block
+    check must watch. Derived from Config so a newly added cloud provider is covered by
+    construction instead of being forgotten in a hardcoded list."""
+    return tuple(sorted(pid for pid in transports
+                        if config.get_provider(pid).kind != "local"))
+
+
+def _role_check(router, config, key_lookup, role):  # noqa: ANN001
+    """One live call for a role, pinning the answering provider to the route's resolution.
+    Distinguishes an ENV failure (a cloud key unset) from a transport/network failure so the
+    report reads honestly. A LOCAL role needs no key, so no key pre-check runs for it."""
+    want_provider = expected_provider(config, role)
+    label = role_label(config, role)
+    provider = config.get_provider(want_provider)
+    if provider.kind != "local":
+        try:
+            key_lookup(provider.key_env)  # env pre-check; the value is never printed
+        except Exception:  # noqa: BLE001
+            return (label, False, f"{provider.key_env} unset (env)")
     try:
         prov = _provider_of(config, router.call(role, PROMPT).model)
     except Exception as exc:  # noqa: BLE001 — kind only, never the detail
@@ -127,18 +162,16 @@ def main(debug: bool = False) -> int:
         ledger = Ledger(Path(tmp) / "ledger")
         transports = build_transports(config, key_lookup,
                                       send=debug_send if debug else None)
+        # Spy EVERY cloud transport (derived, not a hardcoded pair) so the pii-block check
+        # proves zero egress across all of them — a new cloud provider can't slip past it.
         cloud_spies = {}
-        for pid in ("groq", "gemini"):
-            if pid in transports:
-                transports[pid] = cloud_spies[pid] = Spy(transports[pid])
+        for pid in cloud_provider_ids(config, transports):
+            transports[pid] = cloud_spies[pid] = Spy(transports[pid])
         router = Router(config, ledger, transports=transports)
 
-        # 1 — reasoning on Groq (pin the provider).
-        results.append(_cloud_check(router, config, key_lookup,
-                                    "reasoning", "groq", "reasoning(Groq)"))
-        # 2 — critic on Gemini (pin the provider).
-        results.append(_cloud_check(router, config, key_lookup,
-                                    "critic", "gemini", "critic(Gemini)"))
+        # 1+2 — reasoning and critic, each pinned to WHEREVER ITS ROUTE RESOLVES.
+        for role in ("reasoning", "critic"):
+            results.append(_role_check(router, config, key_lookup, role))
 
         # 3 — local embed on Ollama.
         try:

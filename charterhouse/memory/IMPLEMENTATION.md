@@ -44,6 +44,8 @@ not a generator):
 - `embeddings.py` — `Embeddings` protocol (`embed(text) -> tuple[float, ...]`, `dim`);
   `OllamaEmbedder(host, model, transport=None)` posting to `/api/embeddings` via an
   injected transport callable (tests inject a fake; no `httpx`/network dependency in CI).
+  The body carries `keep_alive: 0` (ops fix, 2026-07-30) so Ollama unloads the embed model
+  the moment the response completes — zero idle VRAM, at a reload from disk per embed.
 - `store.py` — `MemoryStore`: LanceDB (pinned `lancedb==0.34.0`) table `memory` under
   `vectors_dir`, rows per the docs/33 schema. `open()` init-or-verify (marker `EMBED_MODEL`
   — the same file A1 preflight checks, docs/25 §4); `add(row)`; `set_status(id, status)`;

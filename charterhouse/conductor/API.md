@@ -115,8 +115,10 @@ embedder) — neither is on any v1 command path. Nothing here is a frozen surfac
 
 ### Real model transport (`conductor/transport.py`) — additive, wiring-layer
 The ops-phase HTTP client the Router's adapters wrap (router IMPLEMENTATION §6.1: composed
-at wiring, never inside S8). `HttpOpenAITransport` (Groq/OpenRouter/local Ollama, OpenAI
-`/chat/completions`) and `HttpGeminiTransport` (the Gemini shim's native `generateContent`);
+at wiring, never inside S8). `HttpOpenAITransport` (Groq/OpenRouter + any OpenAI-shaped local
+server, OpenAI `/chat/completions`), `HttpOllamaTransport` (the local Ollama chat path on
+Ollama's **native** `/api/chat`) and `HttpGeminiTransport` (the Gemini shim's native
+`generateContent`);
 `build_transports(config, key_lookup)` composes `{provider_id: transport}` from Config
 (base_url/key_env NAMES only) + the injected `key_lookup` (A1's `env.env_key_lookup`) for
 secrets. Keys are read by name at call time, placed only in the auth header, and NEVER
@@ -129,4 +131,29 @@ HTTP status/body per attempt with the key redacted). Model ids in `config/` are 
 provider's REAL API model string (Groq `llama-3.3-70b-versatile`, Ollama `llama3.1:8b`,
 Gemini `gemini-2.0-flash`), sent verbatim to the provider. Every request carries an explicit
 `User-Agent: charterhouse/1.0` (urllib's default UA is edge-blocked by some providers).
+
+**Free profile: zero Gemini dependency (2026-07-30).** The live smoke confirmed Groq
+reasoning 200 OK, the local embed OK, and the PII cloud-block holding — but Gemini returns 429
+with `limit: 0` (its free tier is provisioned at zero for this account, so it will never
+answer). The `free` profile therefore routes no live role through Gemini: the **critic is local
+`qwen3:8b`** (family `qwen` — cross-family against the Groq `llama` producer, so INV-WF-2 tier
+1 still holds) with a local `llama3.1:8b` fallback (same family as the producer → tier 2 if
+qwen3 fails, never a lost critic), and `reasoning`'s dead Gemini fallback hop is removed —
+Groq is the only free provider serving the route's 32k `min_ctx`, so exhaustion + pause is the
+honest behaviour rather than burning an attempt on a guaranteed 429. Every critic candidate is
+local, so critiques never leave the machine. The gemini model/provider/transport stay in the
+catalog for other profiles and for model portability. **Remaining limit:** the `web` role still
+resolves to Gemini — `gemini-2.0-flash` is the only catalog model with web capability, so this
+needs a web-capable provider, not a reroute; nothing in v1 calls role `web`.
+
+**VRAM discipline (local Ollama).** The local chat path uses Ollama's native `/api/chat`
+rather than its OpenAI-compatible endpoint, because `keep_alive` is not an accepted field
+there — it would be silently dropped and the model would hold VRAM for the default 5 minutes
+after every call. Each local request therefore carries `keep_alive: 0` (`stream: false`,
+`max_tokens` → `options.num_predict`), so Ollama unloads the model as soon as the response
+completes and **zero VRAM is held while the factory is idle**; the trade is a reload from disk
+per local call. `keep_alive` is Ollama-only and never appears in a cloud body (asserted).
+`build_transports` keys this on the provider id `ollama`, not on `kind == "local"` — a local
+LM Studio / vLLM server still gets the OpenAI-compat transport. A7's `OllamaEmbedder` sends
+the same `keep_alive: 0` on `/api/embeddings` (the other resident local model).
 Nothing here is a frozen surface.

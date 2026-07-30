@@ -95,7 +95,8 @@ partial/guessed response (fail closed).
    name. No real transport ships in A6 (live smoke is optional/non-gating, docs/11 DoD).
    → **REALIZED (feat/ops-transport, 2026-07-29):** the real HTTP transports live at the
    wiring layer in `charterhouse/conductor/transport.py` (`HttpOpenAITransport` for Groq/
-   OpenRouter/local Ollama, `HttpGeminiTransport` for the Gemini shim), composed by
+   OpenRouter, `HttpOllamaTransport` for local Ollama — native `/api/chat` with
+   `keep_alive: 0`, `HttpGeminiTransport` for the Gemini shim), composed by
    `build_transports(config, key_lookup)`; `key_lookup` is A1's `env.env_key_lookup`.
    `router/` is unchanged — the adapters wrap the injected transport exactly as designed;
    the cloud `_guard` still hard-stops PII before any transport send (proven CI-safe with a

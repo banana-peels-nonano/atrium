@@ -49,7 +49,7 @@ class Model:
 
 def default_family(model_id: str) -> str:
     """The canonical family derivation — the model id's leading alphabetic token,
-    lowercased (``claude-sonnet``→``claude``, ``llama3.1-8b-local``→``llama``). ONE home
+    lowercased (``claude-sonnet``→``claude``, ``llama3.1:8b``→``llama``). ONE home
     (this module): S3's loader uses it to default ``Model.family``; nothing else parses
     model ids for families (the critic's interim heuristic is retired — A8 RISKS R3)."""
     letters = []
