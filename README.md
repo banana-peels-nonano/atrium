@@ -87,8 +87,8 @@ kill → salvage — runs end-to-end through the single chokepoint over a live s
 real Groq + Ollama transports. All ten merge gates in `docs/63` are mechanically enforced
 in CI (`scripts/ci.ps1`), not merely observed: tests, contract/ICR drift, lifecycle
 invariants, anti-coupling imports, determinism imports, ownership, secret + PII scan.
-**775 tests green on `main`; 787 on `feat/idea-note`**, the one branch still sitting at its
-merge gate (it adds `capture --note`, which carries your idea's actual text to the model).
+**787 tests green on `main`**, verified by `scripts/ci.ps1` at the final merge. Nothing is
+outstanding on a branch.
 
 **What is not.** These are documented in [`docs/QUICKSTART.md`](docs/QUICKSTART.md) §7, not
 papered over:
