@@ -23,4 +23,9 @@ A solo-founder "startup factory": a deterministic **Conductor** engine moves **V
 See `00_manifest.md` §6. In short: RFC-2119 MUST/SHOULD/MAY, numbered invariants `INV-x`, single ownership, cite-your-source, fail closed.
 
 ## Status
-IB-1.0 · architecture baseline Charter House v1.1 (frozen) · ready for Phase 0.
+IB-1.0 · architecture baseline Charter House v1.1 (frozen) · **fully implemented.** Every
+subsystem S2–S15 is real on an always-green `main`, all five interface freezes are backed by
+code, and all ten `63` merge gates are mechanically enforced. Phase 7 exited 2026-07-22 (tag
+`phase-7`); the ops/transport and AI-verdict layers merged after it. The build history is
+`BUILD_TRACKER.md`; the project's final state and retrospective are in the top-level
+`../README.md`.

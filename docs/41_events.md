@@ -25,7 +25,7 @@ Append MUST be atomic and totally ordered (INV-LEDGER). `prev_hash` forms the in
 Grouped; payload fields listed. Adding a type is a versioned, additive change (`43` interface rules); removing/renaming is a breaking change requiring migration.
 
 ### Sourcing & framing
-- `capture` — {source, note_ref}
+- `capture` — {source, note_ref, codename, contains_pii?} *(`contains_pii` is an ADDITIVE field, 2026-08-01: the S7 scanner's verdict on the founder's idea note, OR-ed with an explicit `--pii`, so a PII-bearing idea degrades to local routing at every later model call without the founder re-stating it. When `capture --note/--note-file` is used, `note_ref` points at a REAL vault file (`ventures/<vid>/note.md`); otherwise it stays the opaque `note-<vid>` label it has always been. **The note TEXT never enters this payload** — only the ref and the boolean.)*
 - `frame` — {brief_ref, score{pain,reach,build,money,compound}, reach_is_hypothesis:true}
 - `score_override` — {old_score, new_score, reason}  *(founder override; INV-GOV-6)*
 

@@ -3,8 +3,8 @@
 Regenerates the OpenCode agent files in THIS directory from the neutral specs in
 ``agents/`` (the single source of truth). Logic lives in
 ``charterhouse.capabilities.framework.harness_opencode`` (unit-tested there); this
-entry only wires paths. Fails loudly (``SpecInvalid``) while the ``agents/*.agent.md``
-stubs are empty — A9 fills them in Phase 5.
+entry only wires paths. Fails loudly (``SpecInvalid``) on an empty or malformed
+``agents/*.agent.md`` — never silently; A9 filled the six real specs in Phase 5.
 
 Usage (from the repo root, in the project venv):
     python adapters/harness/opencode/generate.py

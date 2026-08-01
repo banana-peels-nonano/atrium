@@ -1,7 +1,8 @@
 """A0 structure test — asserts the repository tree matches docs/31_folder_structure.md.
 
-This is the Phase 0 acceptance check (docs/54, row A0): drift from the frozen tree
-fails CI. It verifies presence/shape only — no subsystem logic exists yet.
+This is the A0 acceptance check (docs/54, row A0), written at Phase 0 and still live:
+drift from the frozen tree fails CI. It verifies presence/shape only — every subsystem's
+behavior is asserted by its own suite.
 """
 
 from __future__ import annotations

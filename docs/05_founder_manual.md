@@ -30,3 +30,5 @@ The system MUST make the founder's daily interaction completable in a short morn
 
 ## Acceptance for the human layer
 Phase 9: a founder can run one full day-cycle and one kill-day cycle end-to-end in dry-run, issuing every lever, with every RED action correctly halting for authorization, and every brief conforming to schema.
+
+**Status (2026-08-01): met, with two named gaps.** The founder CLI (`charterhouse.conductor.cli`, driver's manual in `QUICKSTART.md`) runs the full cycle end-to-end on a real ledger — capture → frame → admit → validate → advise → gate brief → steer or kill → salvage — with every RED action (`admit`/`gate`/`kill`) halting tokenless and the venture unmoved (recorded verbatim in `QUICKSTART.md` §5), briefs conforming by construction, and `silence` a valid `brief` output. The gaps, both recorded in `QUICKSTART.md` §7: **GRADUATE has no CLI subcommand** (it stays on the `Conductor.command` API), and `brief` under-reports vs `killday`, which is the honest daily surface. The time-budget obligation's active-day guards also cannot fire unaided — the clock accumulates but does not advance itself.

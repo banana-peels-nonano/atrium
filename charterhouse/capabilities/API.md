@@ -3,10 +3,15 @@ Owner: A8 Framework Agent   ·   Matches docs/40 §7 exactly (frozen seam)   · 
 
 ## Exposed surface
 
-### `Workflow.run(state: State, venture: Venture, *, require=None) -> WorkflowResult`
+### `Workflow.run(state: State, venture: Venture, *, require=None, note="") -> WorkflowResult`
 *(`require` is the additive docs/43 §7 kwarg, 2026-07-31: a per-run routing constraint that
 overrides the row's own and applies to **both** LLM beats — the caller's way to say
-`contains_pii`, which confines PRODUCE and CRITIQUE alike to local models, INV-PII-3.)*
+`contains_pii`, which confines PRODUCE and CRITIQUE alike to local models, INV-PII-3.
+`note` is the additive kwarg of 2026-08-01: the founder's own words about the idea, surfaced
+in the prompt as its own `IDEA (founder's words):` section ahead of DOCTRINE. It arrives as
+DATA — the caller reads it from the vault — so PREPARE keeps **no vault path** and beat
+isolation stays structural. Already CHECKPOINTed at capture, so it carries redaction tokens,
+never raw PII.)*
 - **Preconditions:** `state` has a registered `WorkflowSpec` (the state→workflow table is
   DATA supplied at wiring — S12/A9 own the real table, docs/13); `venture.state == state`
   (a mismatch → `StateMismatch`, nothing runs).
@@ -81,7 +86,8 @@ overrides the row's own and applies to **both** LLM beats — the caller's way t
   prompts): required sections `Mission` / `Scope` / `Inputs` / `Outputs` /
   `Memory Scope` (READ:/WRITE: tag lists) / `Escalation`, plus the mandatory literals
   **"no authority"** and **"stateless"**. Any missing piece → `SpecInvalid` (fail
-  closed). A9 fills the six real specs in Phase 5 — A8 freezes the FORMAT.
+  closed). A8 froze the FORMAT; A9 filled the six real specs in Phase 5 (merged
+  2026-07-19) — they are the live data this loader parses.
 - `Memory Scope → WRITE` feeds S9's `write_lesson(..., scope=)` seam via
   `Framework.write_lesson(spec, lesson)` — an out-of-scope write surfaces S9's
   `ScopeViolation` unchanged (docs/54 §S11 enforcement, one refusal type).

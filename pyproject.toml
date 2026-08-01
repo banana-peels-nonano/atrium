@@ -3,7 +3,8 @@ name = "charterhouse"
 version = "0.0.0"
 description = "Charter House — a deterministic solo-founder startup factory (Implementation Bible build)."
 requires-python = ">=3.13"
-# Runtime dependencies are added per subsystem in later phases, pinned for reproducibility.
+# Runtime dependencies, one per subsystem that needed one, pinned for reproducibility.
+# (lancedb: S9 vector memory · python-dotenv: S2 .env loading · pyyaml: S3 config.)
 dependencies = [
     "lancedb==0.34.0",
     "python-dotenv==1.0.1",

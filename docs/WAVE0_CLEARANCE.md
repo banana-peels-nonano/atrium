@@ -85,6 +85,8 @@ These are **not** recorded yet. On your approval they get appended to `docs/BUIL
 - No implementation code. No test bodies (TESTPLANs specify them; they are written at the implementation stage).
 - No freeze recorded in the Build Tracker. No Wave-1 subsystem started.
 - CI gate 1 (architecture/API check) is still a placeholder; **this document is the manual `56` clearance** it will later automate.
+  *(Historical record, true as written on 2026-07-04. Gate 1 went live at Phase-7 exit on 2026-07-22 —
+  `scripts/architecture_check.py` now enforces contract-doc liveness + docs/40 surface resolution mechanically.)*
 
 ## 7. Requested decision
 **Clear A1, A2, A3, A11 to implement?** On "yes": I record CLEARED + IF-1 + Config-IF-2 in the Build Tracker and

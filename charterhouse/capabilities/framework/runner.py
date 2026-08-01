@@ -71,7 +71,7 @@ class Workflow:
     # --- the frozen surface (IF-5) ------------------------------------------------------
 
     def run(self, state: State, venture: Venture, *,
-            require=None) -> WorkflowResult:  # noqa: ANN001 — Require (IF-2)
+            require=None, note: str = "") -> WorkflowResult:  # noqa: ANN001 — Require (IF-2)
         """All four machine beats in order (GATE is human). Fail closed at every step;
         a model failure never corrupts state (INV-WF-1).
 
@@ -85,16 +85,19 @@ class Workflow:
             raise StateMismatch(
                 f"venture {venture.id!r} is in {venture.state.value}, not "
                 f"{state.value} — refusing to run a stale workflow (RISKS R10)")
-        cap_input = self.prepare(spec, venture, state)
+        cap_input = self.prepare(spec, venture, state, note=note)
         artifact = self.produce_beat(cap_input)
         critique = self.critique_beat(cap_input, artifact)
         return self.checkpoint(spec, venture, artifact, critique)
 
     # --- beat methods (exposed for tests/S12; decomposition internal, not frozen) -------
 
-    def prepare(self, spec: WorkflowSpec, venture: Venture, state: State) -> CapInput:
+    def prepare(self, spec: WorkflowSpec, venture: Venture, state: State,
+                *, note: str = "") -> CapInput:
         """PREPARE (deterministic): ``Memory.retrieve`` → frozen ``CapInput``. Zero
-        writes, zero events (INV-WF-1)."""
+        writes, zero events (INV-WF-1). ``note`` (additive) is the founder's idea text,
+        already read from the vault BY THE CALLER — this beat still has no vault path, so
+        beat isolation stays structural."""
         task = TaskContext(
             text=f"{spec.capability.mission} — venture {venture.codename} "
                  f"in state {state.value}",
@@ -104,7 +107,7 @@ class Workflow:
         )
         working_set = self._memory.retrieve(task, spec.k)
         return CapInput(spec=spec, venture=venture, state=state,
-                        working_set=working_set)
+                        working_set=working_set, note=note)
 
     def produce_beat(self, cap_input: CapInput) -> Artifact:
         """PRODUCE with the bounded retry loop (``spec.retries`` total attempts on

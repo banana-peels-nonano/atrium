@@ -36,7 +36,7 @@ everything after.
 
 | # | Command | What it does / what you'll see |
 |---|---|---|
-| 1 | `ch capture --venture demo-001 --codename atrium-demo --source inbox --note-ref note-demo-001` | **Capture.** Records the idea's birth; the venture now exists at `CAPTURED`. Prints your first `event=` id. |
+| 1 | `ch capture --venture demo-001 --codename atrium-demo --note "<your idea, in your own words>"` | **Capture.** Records the idea's birth at `CAPTURED` **and stores your text** (§2b). Use `--note-file idea.md` to write it in an editor instead. Add `--pii` if it contains personal data. Prints your first `event=` id. |
 | 2 | `ch pipeline` | The board — every venture, state, score. Your at-a-glance "where is everything". |
 | 3 | `ch frame --venture demo-001 --brief-ref brief:demo-001 --score 19 --quotes 2` | **Frame.** Attaches your score and how many primary quotes back it. Moves `CAPTURED → FRAMED`. Score ≥18 is admit-worthy, <14 is kill-worthy; ≥2 quotes required. |
 | 4 | `ch admit --venture demo-001` | **Deliberately fails** — admission is RED. Prints `REFUSED … RED action requires a founder token`, exit 1, venture unmoved. Run it once to see the halt. |
@@ -54,6 +54,44 @@ everything after.
 
 **The AI judges; you decide.** `advise` produces an opinion and records it — it moves nothing.
 Only step 12 changes a venture's state, and only with your `--approve`.
+
+**Shortest useful path — three commands.** You do not need `frame`/`admit` to get a verdict:
+`CAPTURED` has its own workflow (the *scout* capability), so an idea can be judged the moment
+it lands.
+
+```powershell
+ch capture --venture idea-001 --codename "one-line name" --note "your idea, in full"
+ch advise  --venture idea-001
+ch gatebrief --venture idea-001
+```
+
+## 2b. Where your idea's text actually goes
+
+`--note` / `--note-file` is the channel. The text is **not** put in the ledger — it is written
+to a file in your vault and the ledger keeps only a pointer plus a PII flag:
+
+```
+<data-dir>\vault\ventures\<venture-id>\note.md      <- your words, what the model reads
+<data-dir>\vault\<venture-id>-note.private.md       <- raw originals, only if PII was found
+```
+
+On the way in it passes S7's CHECKPOINT: **redact → independent re-scan → fail closed.** Any
+personal data is replaced by a stable token (`⟨PII:email:a1b2c3d4⟩`) before the file is
+written, and the raw values go to the local-only `.private.md` sidecar, which is gitignored
+and never embedded, logged, or sent anywhere. If something survives redaction, capture
+refuses outright and records nothing.
+
+**The scanner tags PII for you.** If your note contains a value the scanner recognises, the
+venture is marked PII-carrying automatically — `--pii` is for when *you* know it's sensitive
+and the scanner might not. Either way, every later model call for that venture stays local:
+you don't have to remember the flag at `advise` time.
+
+Two other things reach the model on every run: `<data-dir>\vault\memory\DOCTRINE.md` (plain
+markdown, your factory principles — create it if you want standing context) and any lessons
+retrieved from past ventures.
+
+Note the older `--note-ref` still exists and is still just an opaque label — it points at
+nothing. `--note` is the one that carries words.
 
 `ch brief` gives the triaged daily read and `ch pause` / `ch resume` freeze the clock — read
 §7.2 and §7.3 before relying on either.

@@ -55,12 +55,18 @@ class WorkflowSpec:
 @dataclass(frozen=True)
 class CapInput:
     """The PREPARE output — everything PRODUCE may see (the PII-safe context,
-    docs/04 §7): the workflow row, the venture facts, and the S9 working set."""
+    docs/04 §7): the workflow row, the venture facts, and the S9 working set.
+
+    ``note`` is the **additive** docs/43 §7 field: the founder's own words about the idea,
+    read from the vault by the caller and passed in as DATA (the beats have no vault path —
+    keeping that structural is why this arrives as an argument rather than a file read).
+    Already CHECKPOINTed at capture, so it carries redaction tokens, never raw PII."""
 
     spec: WorkflowSpec
     venture: Venture
     state: State
     working_set: WorkingSet
+    note: str = ""
 
 
 @dataclass(frozen=True)

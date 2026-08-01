@@ -86,7 +86,8 @@ def make_factory(tmp_path: Path, *, ledger: Ledger | None = None) -> SimpleNames
                         ledger, vault_dir,
                         family_of=lambda mid: config.get_model(mid).family)
     conductor = Conductor(ledger=ledger, registry=registry, lifecycle=lifecycle,
-                          gov=gov, memory=mem.memory, workflow=workflow, clock=clock)
+                          gov=gov, memory=mem.memory, workflow=workflow, clock=clock,
+                          security=security, vault_dir=vault_dir)
     return SimpleNamespace(conductor=conductor, ledger=ledger, registry=registry,
                            lifecycle=lifecycle, gov=gov, security=security,
                            memory=mem.memory, mem=mem, workflow=workflow,

@@ -24,6 +24,7 @@ from charterhouse.governance.types import Action
 from charterhouse.lifecycle import LifecycleError
 from charterhouse.projections import calibration, daily_brief, gate_brief, killday_brief, pipeline
 
+from charterhouse.conductor.notes import read_note, recorded_note, write_note
 from charterhouse.conductor.types import CommandRefused, CommandResult
 
 __all__ = ["Conductor"]
@@ -34,7 +35,8 @@ class Conductor:
     consumed-surface list); constructing it is free of side effects."""
 
     def __init__(self, *, ledger, registry, lifecycle, gov, memory, workflow,  # noqa: ANN001
-                 clock, actor: str = "conductor") -> None:
+                 clock, actor: str = "conductor",
+                 security=None, vault_dir=None) -> None:  # noqa: ANN001 — additive seams
         self._ledger = ledger
         self._registry = registry
         self._lifecycle = lifecycle
@@ -43,6 +45,11 @@ class Conductor:
         self._workflow = workflow
         self._clock = clock
         self._actor = actor
+        # Additive seams (docs/43 §7) for the idea note: S7 CHECKPOINTs the founder's text
+        # before it reaches the vault, and the vault dir is where it lands. Absent (older
+        # wiring) → `capture --note` refuses rather than storing unscanned text.
+        self._security = security
+        self._vault_dir = vault_dir
         # The dispatch table — built once; never rebound (INV-COND-3 statelessness).
         self._handlers = {
             "capture": self._capture,
@@ -149,6 +156,20 @@ class Conductor:
         payload = {"source": args.get("source", "inbox"),
                    "note_ref": args.get("note_ref", f"note-{vid}"),
                    "codename": args.get("codename", vid)}
+        note = args.get("note")
+        if note:
+            # Write-then-append (the CHECKPOINT pattern): the founder's text is redacted +
+            # scanned by S7 and stored in the vault; only the ref and the scanner's verdict
+            # reach the ledger. A residual finding raises from S7 — nothing is recorded.
+            if self._security is None or self._vault_dir is None:
+                raise CommandRefused(
+                    "capture --note needs the security/vault seams wired — refusing to "
+                    "store an unscanned idea note")
+            ref, contains_pii = write_note(
+                self._security, self._vault_dir, vid, str(note),
+                forced_pii=bool(args.get("contains_pii")))
+            payload["note_ref"] = ref
+            payload["contains_pii"] = contains_pii
         if args.get("forked_from"):
             payload["forked_from"] = args["forked_from"]
         # The venture's birth record — the ONE recorder fact carrying to_state
@@ -307,14 +328,20 @@ class Conductor:
 
     def _run_workflow(self, args, state: State):  # noqa: ANN001
         v = self._venture(args)
-        result = self._workflow.run(state, v, require=self._require(args))
+        note_ref, tagged_at_capture = recorded_note(self._ledger, v.id)
+        result = self._workflow.run(
+            state, v,
+            require=self._require(args, tagged_at_capture),
+            note=read_note(self._vault_dir, note_ref))
         return result.event_id, result
 
     @staticmethod
-    def _require(args):  # noqa: ANN001
+    def _require(args, tagged_at_capture: bool = False):  # noqa: ANN001
         """The per-run routing constraint. ``contains_pii`` confines BOTH LLM beats to
-        local models (INV-PII-3); absent, the row's own constraint applies."""
-        if not args.get("contains_pii"):
+        local models (INV-PII-3). The tag is the OR of this run's flag and the one the
+        SCANNER recorded when the note was captured — so a PII-bearing idea degrades to
+        local even when the founder never re-states it."""
+        if not (args.get("contains_pii") or tagged_at_capture):
             return None
         from charterhouse.router.types import Require
 
@@ -325,7 +352,8 @@ class Conductor:
         critic take, so a gate becomes presentable (INV-COND-2). YELLOW, not RED: this is
         an AI opinion, not a founder decision — it moves no venture (the CHECKPOINT event
         is state-neutral by construction) and crosses no gate. A state with no workflow row
-        surfaces S10's ``UnknownWorkflow`` unchanged (fail closed)."""
+        surfaces S10's ``UnknownWorkflow`` unchanged (fail closed). The founder's stored
+        idea note (if any) rides along, so the capability reads their words, not a title."""
         return self._run_workflow(args, self._venture(args).state)
 
     def _shape(self, args, token, action):  # noqa: ANN001

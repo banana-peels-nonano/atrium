@@ -124,7 +124,8 @@ No "guess/continue" path; the runner never returns a partial `WorkflowResult`.
    A8 freezes the neutral FORMAT (parser + required sections + the no-authority/
    stateless literals) and tests it with fixture specs; the six real contracts are A9's
    Phase-5 deliverable (docs/51). The loader is strict per file; it never invents
-   content for an empty stub (`SpecInvalid`).
+   content for an empty stub (`SpecInvalid`). *(A9 delivered the six specs on
+   2026-07-19 — the stubs described in this question no longer exist.)*
 7. **What exactly does the OpenCode adapter do — call OpenCode?** RESOLVED: it is a
    deterministic *generator* (docs/30 "generators"; docs/51 "OpenCode adapter
    generation"): neutral spec → OpenCode agent markdown (frontmatter + body). It never

@@ -39,5 +39,7 @@ Owner: A8 Framework Agent
   (ledger/API.md — matches).
 - A11 `FakeProvider.complete` matches the IF-2 adapter transport shape (it does — the
   A6 suite runs every transport through it).
-- `agents/*.agent.md` are empty Phase-0 stubs owned by A9; A8 must not fill them
-  (docs/51 ownership), only freeze the format.
+- ~~`agents/*.agent.md` are empty Phase-0 stubs owned by A9; A8 must not fill them
+  (docs/51 ownership), only freeze the format.~~ **RETIRED** (2026-07-19, A9/S11 merged
+  `1b6ae75`): the six real specs are live data behind IF-5 and load under the frozen
+  format. The ownership rule stands — A9 owns the specs, A8 owns the loader.

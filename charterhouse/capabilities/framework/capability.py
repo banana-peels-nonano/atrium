@@ -33,7 +33,13 @@ def assemble_messages(cap_input: CapInput) -> list[dict]:
         f"- [{scored.lesson.lesson_id}] {scored.lesson.text}"
         for scored in cap_input.working_set.records
     )
+    # The founder's own words get their OWN labelled section, first: a capability given only
+    # a codename invents the detail it lacks, and a distinct label is what makes the model
+    # treat the text as the source material rather than as a title.
+    idea = (f"IDEA (founder's words):\n{cap_input.note.strip()}\n\n"
+            if cap_input.note and cap_input.note.strip() else "")
     user = (
+        f"{idea}"
         f"DOCTRINE:\n{cap_input.working_set.doctrine}\n\n"
         f"WORKING MEMORY (top-{len(cap_input.working_set.records)}):\n"
         f"{lessons or '- (none yet)'}\n\n"

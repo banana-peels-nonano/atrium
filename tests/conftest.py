@@ -1,8 +1,8 @@
 """Shared pytest harness wiring (A11).
 
-Phase 0: this holds the repo-root fixture used by the structure test and provides the
-anchor for the shared fakes (FakeProvider, FakeEmbedder, Clock, pii_corpus, golden_set)
-added in later phases per docs/55_testing_strategy.md §2. No production logic lives here.
+This holds the repo-root fixture used by the structure test and anchors the shared fakes
+(FakeProvider, FakeEmbedder, Clock, pii_corpus, golden_set) that A11 delivered per
+docs/55_testing_strategy.md §2. No production logic lives here.
 """
 
 from __future__ import annotations

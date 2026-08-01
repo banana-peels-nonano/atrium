@@ -46,7 +46,8 @@ path, or let a fake's interface drift from the real subsystem it doubles.
 - **Consumes:** `Ledger.append` (A3, docs/40 §2/§10) for telemetry; `EnvContext` (A1) for `K:\Logs\` path.
   As test doubles, the harness *stands in for* all subsystems (docs/51 A11 "APIs consumed: all (as test doubles)").
 - **Consumed by:** every subsystem (each writes its tests into this harness; each emits `Log`/`Telemetry`).
-- Active from Phase 0 (cross-cutting) — the empty harness already runs green (Phase 0 structure test).
+- Active from Phase 0 (cross-cutting) — the harness ran green from the Phase-0 structure test onward and
+  now carries every subsystem's suite; `Log`/`Telemetry` have real bodies (merged 2026-07-11, S14+S15).
 
 ## 5. Failure behavior
 | Failure mode | Fail-closed response |

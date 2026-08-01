@@ -159,7 +159,8 @@ def build_factory(repo_root: str | Path, data_dir: str | Path,
                         ledger, vault_dir,
                         family_of=lambda mid: config.get_model(mid).family)
     conductor = Conductor(ledger=ledger, registry=registry, lifecycle=lifecycle,
-                          gov=gov, memory=memory, workflow=workflow, clock=clock)
+                          gov=gov, memory=memory, workflow=workflow, clock=clock,
+                          security=security, vault_dir=vault_dir)
     return SimpleNamespace(conductor=conductor, ledger=ledger, registry=registry,
                            lifecycle=lifecycle, gov=gov, security=security,
                            memory=memory, workflow=workflow, router=router,
@@ -186,6 +187,13 @@ def _build_parser() -> argparse.ArgumentParser:
     c.add_argument("--codename")
     c.add_argument("--source")
     c.add_argument("--note-ref")
+    c.add_argument("--note", help="your idea in your own words — stored in the vault and "
+                                  "read by the capability at `advise` time")
+    c.add_argument("--note-file", help="same, read from a file (markdown or plain text)")
+    c.add_argument("--pii", action="store_true",
+                   help="mark the idea text as carrying personal data: every later model "
+                        "call for this venture stays local (the scanner also tags it "
+                        "automatically if it recognises PII)")
 
     f = venture(sub.add_parser("frame", help="frame a captured venture (→FRAMED)"))
     f.add_argument("--brief-ref", required=True)
@@ -250,6 +258,11 @@ def _translate(ns: argparse.Namespace):
                          ("note_ref", ns.note_ref)):
             if val is not None:
                 args[key] = val
+        note = _read_note_arg(ns)  # NoteUnreadable propagates: nothing is recorded
+        if note:
+            args["note"] = note
+        if ns.pii:
+            args["contains_pii"] = True
         return "capture", args, None
     if cmd == "frame":
         return "frame", {"venture_id": ns.venture, "brief_ref": ns.brief_ref,
@@ -300,6 +313,24 @@ def _translate(ns: argparse.Namespace):
 
 class CommandUnknown(Exception):
     """Defensive — argparse's ``required=True`` subparser already rejects this."""
+
+
+class NoteUnreadable(Exception):
+    """``--note-file`` names a path that cannot be read. Raised BEFORE dispatch so a bad
+    path never half-captures a venture (fail closed); the message names the path only."""
+
+
+def _read_note_arg(ns: argparse.Namespace) -> str:
+    """The idea text from ``--note`` or ``--note-file`` (the file wins if both are given —
+    it is the more deliberate of the two)."""
+    if getattr(ns, "note_file", None):
+        path = Path(ns.note_file)
+        try:
+            return path.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise NoteUnreadable(f"cannot read --note-file {path}: "
+                                 f"{type(exc).__name__}") from None
+    return getattr(ns, "note", None) or ""
 
 
 # --- rendering (plain text; the tests grep exact substrings) ----------------------------
@@ -420,7 +451,11 @@ def main(argv: list[str] | None = None, *, factory=None) -> int:  # noqa: ANN001
         # call build_factory directly, where the default stays fail-closed).
         factory = build_factory(ns.repo, ns.data_dir, profile=ns.profile, live=True)
 
-    name, args, scope = _translate(ns)
+    try:
+        name, args, scope = _translate(ns)
+    except NoteUnreadable as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2  # nothing dispatched, nothing recorded
 
     tok = None
     if scope is not None and getattr(ns, "approve", False):

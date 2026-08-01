@@ -4,6 +4,17 @@
 
 > Governing principle (frozen): **safe before smart.** The deterministic spine (state, governance, PII, ledger) exists and is proven before any capability is intelligent. A phase does not begin until the prior phase's **exit criteria** are met.
 
+> **Outcome (added 2026-08-01; the plan below is unchanged).** The build ran to completion and is closed —
+> every subsystem S2–S15 is real on an always-green `main`. The phases did not run one-per-label: Phases 0–5 ran
+> as written; **Phase 6 (governance integration end-to-end) was satisfied inside Phase 7** by the A10 Conductor
+> dry-run (Capture→GRADUATED with every RED point halting at the authorization boundary, INV-TEST-SAFE proven as
+> a code fact) rather than as a separate phase; **Phase 7 exited 2026-07-22** (tag `phase-7`, all 10 `63` gates
+> mechanically live); **Phase 8's systemic verification is continuous** — the suite plus the invariant/anti-coupling/
+> determinism/ownership gates run on every merge, and the Stress Test A/B/C scenarios are reproduced by the
+> lifecycle simulator; **Phase 9 (production readiness) was reached only in part** — the founder CLI, real
+> transports, and `QUICKSTART.md` shipped, but v1 deliberately has no real deploy/billing/send effect and the
+> factory clock does not advance itself. See `BUILD_TRACKER.md` (Final state) and the top-level `README.md`.
+
 ---
 
 ## Phase 0 — Repository Foundation

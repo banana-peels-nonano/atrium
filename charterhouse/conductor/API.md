@@ -113,6 +113,32 @@ pause/resume, pipeline, brief, killday, gatebrief. Two fail-closed seams stand i
 ops-phase wiring: `NoTransport` (every model transport) and `NoEmbedder` (the local
 embedder) — neither is on any v1 command path. Nothing here is a frozen surface.
 
+### The idea note (`conductor/notes.py`) — additive, 2026-08-01
+`capture --note/--note-file` stores the founder's own words about a venture and `advise`
+threads them into the PRODUCE prompt as their own `IDEA (founder's words):` section — before
+this, `note_ref` was an opaque label nothing ever opened, so the only per-venture text a
+capability saw was the **codename** and it invented the rest.
+
+Two placements are deliberate. **The text goes to the vault, never the ledger payload**
+(`<vault>/ventures/<vid>/note.md`); the event keeps `note_ref` + a `contains_pii` boolean, so
+the audit trail stays small and free text never meets the S4 payload backstop. The write goes
+through S7 `checkpoint` (redact → independent scan → fail closed), so the copy the model reads
+carries redaction tokens and the raw original stays in the local-only `.private.md` sidecar;
+a residual finding refuses the capture outright (INV-PII-2 — nothing written, nothing
+recorded). **The note reaches the runner as DATA**, read here and passed to
+`Workflow.run(note=…)`, because PREPARE/PRODUCE/CRITIQUE have no vault path reachable from
+their frames — keeping beat isolation structural rather than teaching a beat to open files.
+
+`contains_pii` is the SCANNER's verdict OR the founder's `--pii` flag: the human may always
+over-classify, never under-classify, and **the tag does not depend on them remembering it** —
+`advise` reads it back from the capture event, so a PII-bearing idea degrades to local routing
+with no flag at the advise call. `recorded_note` folds the ledger for a fact the Conductor
+itself recorded (the same shape as `_gate` calling `gate_brief`), not a rule re-implemented
+here (INV-COND-1). Requires the additive `security`/`vault_dir` seams on `Conductor`; without
+them `capture --note` refuses rather than storing unscanned text. A `note_ref` that resolves
+to no file means "no note" — every pre-existing ledger carries the old `note-<vid>` label, so
+that is the normal case on existing history, never an error.
+
 ### `advise` — the AI verdict command (additive, 2026-07-31)
 Runs the venture's **CURRENT-state** workflow (PRODUCE→CRITIQUE) via S10 and records the
 critic take, so a gate becomes presentable (INV-COND-2). State-driven, not hardcoded: a

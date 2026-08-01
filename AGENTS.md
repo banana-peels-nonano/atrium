@@ -20,4 +20,7 @@ it points at the authoritative, frozen specification.
 - One owner per file (`docs/60`). Determinism first; fail closed; never cloud-route PII.
 
 ## Current state
-Build status and the append-only build ledger live in `docs/BUILD_TRACKER.md`.
+**Built and archived.** Every subsystem S2–S15 is real on an always-green `main`, all ten
+`docs/63` merge gates are mechanically enforced, and the project is closed as a documented
+learning artifact — see the top-level `README.md` for the final state and retrospective.
+The append-only build ledger (every gate, every honest limit) is `docs/BUILD_TRACKER.md`.
