@@ -6,6 +6,10 @@ Owner: A5 Governance/Security Agent   ·   Matches docs/40 §4 exactly (frozen s
 ### `Gov.classify(action: Action) -> AuthClass`
 - **Preconditions:** none (total function).
 - **Postconditions:** returns the frozen class per the docs/14 matrix: `AuthClass(color, two_key)`.
+  *(Additive name, 2026-07-31: `advise` is YELLOW — it meters model spend like `build`, but it
+  is an AI opinion, not a founder decision: it moves no venture and crosses no gate, so the RED
+  set is unchanged. Adding a name to the matrix is additive per docs/43 §7; removing or
+  reclassifying one is an ICR.)*
   Two-key: `deploy.prod`, `billing.enable`, and `send.stage` with `params["count"] >
   SCALED_SEND_THRESHOLD`. An **unknown** action name returns RED (fail closed).
 - **Errors:** none raised. **Side effects:** none. **Determinism:** pure. **Auth class:** n/a (classification only).

@@ -113,6 +113,30 @@ pause/resume, pipeline, brief, killday, gatebrief. Two fail-closed seams stand i
 ops-phase wiring: `NoTransport` (every model transport) and `NoEmbedder` (the local
 embedder) — neither is on any v1 command path. Nothing here is a frozen surface.
 
+### `advise` — the AI verdict command (additive, 2026-07-31)
+Runs the venture's **CURRENT-state** workflow (PRODUCE→CRITIQUE) via S10 and records the
+critic take, so a gate becomes presentable (INV-COND-2). State-driven, not hardcoded: a
+VALIDATING venture gets `analyst`, per the docs/13 table; a state with no row surfaces S10's
+`UnknownWorkflow` unchanged (fail closed). **YELLOW, not RED** (S6 matrix, additive name):
+it meters model spend like `build`, but it is an AI opinion, never a founder decision — it
+moves no venture (the CHECKPOINT event is state-neutral by construction) and crosses no gate,
+so the RED set (`admit`/`gate`/`kill` = the founder's levers) is unchanged and `--approve`
+still means exactly those three. `args["contains_pii"]` maps to a `Require(contains_pii=True)`
+that applies to **both** LLM beats — produce and critique alike degrade to local (INV-PII-3).
+The recorded `artifact_produced` payload carries `critic_verdict`/`critic_model`/`steer`
+(docs/41 §2 additive), which is how the Gate Brief replays a STEER with its provenance.
+
+**Producer routes are per-row** (`STATE_ROLE`): the judgment rows whose artifact goes to a
+founder gate (CAPTURED, VALIDATING) produce on `reasoning`; the making rows stay on `draft`.
+Per-row rather than a global flip, so `shape`/`build` keep the route they merged with.
+
+### Live boot (`build_factory(..., live=True)`) — additive
+The production path (`__main__`) now wires the REAL transports (`build_transports`) and the
+local `OllamaEmbedder`, which is what lets `advise` call a model at all. The default stays
+fail-closed (`NoTransport`/`NoEmbedder`) so no test reaches the network by omission
+(INV-TEST-SAFE); only the `__main__` boot opts in. The factory clock is now seeded via
+`clock_from_ledger` (S5), so accumulated active time and the paused flag survive the process.
+
 ### Real model transport (`conductor/transport.py`) — additive, wiring-layer
 The ops-phase HTTP client the Router's adapters wrap (router IMPLEMENTATION §6.1: composed
 at wiring, never inside S8). `HttpOpenAITransport` (Groq/OpenRouter + any OpenAI-shaped local

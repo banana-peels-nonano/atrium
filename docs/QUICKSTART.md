@@ -7,8 +7,8 @@ the receipts come out. §7 lists honestly what does not work yet.
 
 Two facts that make this safe to experiment with:
 
-- **You need no API keys and no models.** Nothing in this command set calls a model or
-  embeds anything — the whole loop runs offline.
+- **Only one command calls a model.** `advise` (step 9) runs the AI producer + critic and
+  needs your Groq key in `.env` plus Ollama running. Everything else is offline bookkeeping.
 - **Nothing is hidden state.** Each command is one fresh process that reads the ledger,
   does one thing, appends one fact, and exits. Stop anywhere and resume later.
 
@@ -44,19 +44,25 @@ everything after.
 | 6 | `ch validate-evidence --venture demo-001 --verdict PASS --quote-count 7 --segment-kind smb-ops` | Records the evidence sub-gate — `PASS` or `FAIL`, with the quote count and which segment they came from. |
 | 7 | `ch validate-experiment --venture demo-001 --channel cold-email` | Marks the experiment **live** on a channel. |
 | 8 | `ch validate-experiment --venture demo-001 --metric reply_rate --actual 0.4 --threshold 5.0 --verdict FAIL` | Records the **result**: the metric, what you got, what you needed, the verdict. This is the fact the recommendation folds from. |
-| 9 | `ch gatebrief --venture demo-001` | The fixed verdict packet for one venture. **Refuses today** — §7.1. |
-| 10 | `ch killday` | Every active venture, briefed, with a mechanical recommendation. Anything not yet briefable is **named, never dropped**. Use this as your daily read (§7.2). |
-| 11 | `ch kill --venture demo-001 --reason "reply rate 0.4% vs 5% threshold"` | Deliberately fails — kill is RED. Same halt as step 4. |
-| 12 | `ch kill --venture demo-001 --reason "reply rate 0.4% vs 5% threshold" --approve` | **The verdict.** Moves `VALIDATING → KILLED`, your reason on the permanent record. |
-| 13 | `ch salvage --venture demo-001 --asset-type audience_list --asset-type anti_pattern` | Banks what the dead venture leaves behind. Refuses if you name nothing — `anti_pattern` is a first-class asset, the lesson is the point. |
-| 14 | `ch pipeline` | Confirms the end state: `demo-001 atrium-demo KILLED score=19`. |
+| 9 | `ch advise --venture demo-001` | **The AI verdict.** Runs the venture's workflow for its current state (VALIDATING → the *analyst* capability): a producer drafts the analysis on Groq, then a **different-family** critic (local `qwen3:8b`) attacks it and proposes a direction. Records the artifact + critic take on the ledger. Prints the tier, the verdict, and the **steer**. Add `--pii` if the venture's context contains personal data — that confines **both** model calls to local models. |
+| 10 | `ch gatebrief --venture demo-001` | The fixed verdict packet: recommendation, **steer**, critic tier, the evidence it rests on, and the artifact. Refuses until step 9 has run (INV-COND-2 — no gate without a critic take). |
+| 11 | `ch killday` | Your daily read: every active venture briefed, **worst-first (KILL → HOLD → ADVANCE)** with its steer and evidence. Anything with no critic take yet is **named, never dropped**, with the `advise` command to fix it. |
+| 12 | **Your call — steer:** `ch gate --venture demo-001 --decision ADVANCE --to SHAPING --approve` | **The steer lever.** Takes the brief's direction and moves the venture on (`VALIDATING → SHAPING`). RED: needs `--approve`. Use `--decision OMW` to grant one more week instead. |
+| 12b | **Your call — kill:** `ch kill --venture demo-001 --reason "reply rate 0.4% vs 5% threshold" --approve` | **The kill lever.** Moves `VALIDATING → KILLED`, your reason on the permanent record. Run it without `--approve` first to see the halt. |
+| 13 | `ch salvage --venture demo-001 --asset-type audience_list --asset-type anti_pattern` | After a kill: banks what it leaves behind. Refuses if you name nothing — `anti_pattern` is a first-class asset, the lesson is the point. |
+| 14 | `ch pipeline` | Confirms the end state. |
+
+**The AI judges; you decide.** `advise` produces an opinion and records it — it moves nothing.
+Only step 12 changes a venture's state, and only with your `--approve`.
 
 `ch brief` gives the triaged daily read and `ch pause` / `ch resume` freeze the clock — read
 §7.2 and §7.3 before relying on either.
 
 ## 3. RED actions and how the approval token works
 
-Three commands are RED — `admit`, `gate`, `kill`. They are the decisions that cost slots,
+Three commands are RED — `admit`, `gate`, `kill`. Note what is **not** on that list:
+`advise` is YELLOW. The AI can spend model tokens to form an opinion without asking you,
+because an opinion moves nothing; only your three levers change a venture's state. They are the decisions that cost slots,
 kill work, or move a venture at a gate, so they refuse to run on your say-so alone:
 
 ```
@@ -91,7 +97,9 @@ you did.
 
 ## 5. What a real run looked like
 
-Verbatim, from a throwaway ledger on 2026-07-30 (abridged to the interesting lines):
+Verbatim, from a throwaway ledger on 2026-07-30 (abridged to the interesting lines). This
+predates the `advise` command, so it ends in a kill; steps 9-12 above are the added path and
+their shapes are shown in §5b.
 
 ```
 $ ch capture --venture demo-001 --codename atrium-demo --source inbox --note-ref note-demo-001
@@ -148,60 +156,77 @@ kill               to=KILLED      tok=tok-a27c   prev=71721a7f5146
 salvage            to=-           -              prev=c8bbc60cbce3
 ```
 
+## 5b. What the AI verdict prints
+
+The shapes below are what the renderers emit (the wording is fixed; the model's own text is
+whatever your idea earns). Not a transcript of a real idea — you run that one.
+
+```
+$ ch advise --venture demo-001
+OK advise  [YELLOW]  event=<id>
+  produced: ventures/demo-001/analyst-validating.md  (capability analyst, model llama-3.3-70b-versatile)
+  critic tier 1 via qwen3:8b — verdict review
+  steer: <the critic's concrete what-to-build-instead, on one line>
+  gate brief is now presentable: charterhouse gatebrief --venture demo-001
+
+$ ch gatebrief --venture demo-001
+OK gatebrief  [GREEN]
+  venture: demo-001  (atrium-demo)  state=VALIDATING
+  score=19  active_in_state=0
+  recommendation: KILL
+  critic tier: 1  artifact=ventures/demo-001/analyst-validating.md
+  steer: <direction>
+  evidence: evidence:PASS(7 quotes), experiment:reply_rate:FAIL
+```
+
+`recommendation` is the mechanical fold of your recorded evidence; `steer` is the critic's
+direction; `evidence` is what both rest on. The decision is still yours.
+
 ## 6. The state path
 
 `CAPTURED → FRAMED → VALIDATING → SHAPING → BUILDING → LAUNCHED → EARNING → GRADUATED`, with
-`KILLED → ARCHIVED` reachable from most points. Steps 1-14 above cover `CAPTURED` through the
-`VALIDATING` verdict — the part the CLI drives today. Everything past `VALIDATING → SHAPING`
-needs the gate lever in §7.1.
+`KILLED → ARCHIVED` reachable from most points. Steps 1-14 cover `CAPTURED` through the
+`VALIDATING` verdict and out the other side — kill, or steer on to `SHAPING`. From `SHAPING`
+onward the same rhythm repeats: `ch advise` for the AI take on the current state, then
+`ch gate --approve` for yours.
 
-## 7. What does NOT work yet (read before relying on the loop)
+## 7. How the AI verdict works (and its limits)
 
-### 7.1 You can KILL from the CLI, but you cannot yet STEER
+### 7.1 Who judges what
 
-`gate` and `gatebrief` assemble the fixed Gate Brief, and that schema **cannot exist without
-a Critic take** (INV-COND-2, by construction — a gate with no independent critique is not
-presentable). A critic take comes from an `artifact_produced` event, which only a **workflow
-run** creates, and the CLI exposes no workflow command. So today:
+`advise` runs two model calls behind one command:
 
-- **KILL** — works, via `ch kill --approve` (step 12). It transitions directly and needs no brief.
-- **ADVANCE / OMW (steer)** — **blocked.** `ch gate --decision ADVANCE --to SHAPING --approve`
-  refuses with `NoCriticForGate` even with `--approve`. Verified. This is the invariant doing
-  its job, not a bug: no verdict without a critic take.
-- **GRADUATE** — no CLI subcommand; it stays on the `Conductor.command` API.
+1. **Producer** — the venture's capability for its current state (VALIDATING → *analyst*)
+   drafts the analysis, on the `reasoning` route (Groq `llama-3.3-70b-versatile`).
+2. **Critic** — a **different model family** attacks that draft (local `qwen3:8b`, family
+   `qwen` vs the producer's `llama`). Cross-family is the point: a model is a poor judge of
+   its own output, so the framework records *which tier* actually answered:
+   - **tier 1** — different family critiqued it (what you want),
+   - **tier 2** — same family, different model (the router had no cross-family option),
+   - **tier 3** — the deterministic checklist floor (no model answered, or it would have
+     been self-critique). **Tier 3 never produces a steer** — it gives mechanical findings.
 
-What unblocks it: wire the (now working) model transports into `build_factory` — it already
-takes a `transports=` seam, the CLI just defaults to the fail-closed `NoTransport` — and
-expose the shape/build workflow commands. An ops-phase task, not a config change.
+The brief always shows the tier next to the steer, so you can tell real advice from a floor.
+A steer is never invented: if the critic doesn't give one, the brief says so.
 
-### 7.2 Use `killday`, not `brief`, as your daily read
+### 7.2 PII stays local, on both legs
 
-`brief` silently skips any venture that isn't gate-presentable. In the run above it printed
-`silence — nothing needs you today` while a venture with a **failed experiment** sat waiting
-for a verdict. Until §7.1 lands, `silence` is not evidence that nothing needs you.
-`killday` is the honest surface: it names unbriefable ventures instead of skipping them.
+`ch advise --venture <id> --pii` tags the run, and the router then confines **both** the
+producer and the critic to local models. The critic leg matters as much as the producer: the
+artifact text is what gets critiqued, so a cloud critic would be an egress too. With the tag
+set, zero cloud sends happen on either leg — that's an enforced invariant (INV-PII-3), tested
+by counting sends on every cloud transport, not a policy note.
 
-### 7.3 The clock does not survive the process — deadlines are inert, `resume` is broken
+### 7.3 What still doesn't work
 
-Each invocation builds a fresh in-memory factory clock starting at zero, and nothing seeds it
-from the ledger. Two observed consequences:
-
-**Deadline guards never fire.** Every event stamps `active_time: 0`, so the active-day rules
-— SHAPING ≤10 days, the BUILDING >15-day kill guard, the 60-day evidence TTL — never trip.
-The state machine's *legality* rules are all live and enforced; only the *time-based* ones are
-dormant. Don't expect the factory to tell you a venture has gone stale.
-
-**`pause` / `resume` don't work across commands.** `pause` pauses the clock inside one
-process, which then exits; the next process starts unpaused, so `resume` always refuses:
-
-```
-$ ch pause --reason "holiday"
-OK pause  [GREEN]  event=01KYSFP6F03BDFKADMKVSGJAD2
-$ ch resume --reason "back"
-REFUSED resume: factory is not paused                                             (exit 1)
-```
-
-Both need the same fix: reconstruct the clock (accumulated active time + paused flag) from
-the ledger's `pause`/`resume`/`experiment_live` events at boot, the way every other piece of
-state is already derived. The events are all recorded correctly — nothing is lost, and the
-fix is purely additive at the composition root.
+- **GRADUATE** has no CLI subcommand; it stays on the `Conductor.command` API.
+- **`brief` still under-reports.** It skips ventures that aren't gate-presentable, so it can
+  print `silence` while something waits. **`killday` is the honest daily read** — it names
+  unbriefable ventures and tells you the `advise` command to fix each one.
+- **Active time accumulates but does not advance on its own.** The clock now survives across
+  commands — the paused flag and accumulated active time are rebuilt from the ledger at every
+  boot, so `pause`/`resume` works and the counter no longer resets to zero. But nothing yet
+  *advances* it as real days pass: that needs elapsed wall-time recorded per event and folded
+  against paused spans. Until then the active-day guards (SHAPING ≤10, BUILDING >15, the
+  60-day evidence TTL) still won't fire on their own. Legality rules are all live; the
+  time-based ones remain the open piece.

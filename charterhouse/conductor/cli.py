@@ -35,13 +35,16 @@ from types import SimpleNamespace
 
 from charterhouse.capabilities.framework import Workflow
 from charterhouse.conductor import Conductor, build_registry
+from charterhouse.conductor.transport import build_transports
 from charterhouse.conductor.types import ConductorError
 from charterhouse.config import Config
-from charterhouse.env import load_env_file
+from charterhouse.env import env_key_lookup, load_env_file
 from charterhouse.governance import Gov
 from charterhouse.ledger import Ledger
-from charterhouse.lifecycle import FactoryClock, Lifecycle
-from charterhouse.memory import Memory, MemoryStore, RetrievalWeights
+from charterhouse.lifecycle import Lifecycle
+from charterhouse.lifecycle.clock import clock_from_ledger
+from charterhouse.memory import Memory, MemoryStore, OllamaEmbedder, RetrievalWeights
+from charterhouse.capabilities.framework.types import WorkflowResult
 from charterhouse.projections.types import (
     Board,
     DailyBrief,
@@ -61,10 +64,20 @@ __all__ = ["NoEmbedder", "NoTransport", "build_factory", "main"]
 APPROVE_SCOPES = {"admit": "admit", "gate": "gate", "kill": "kill"}
 TOKEN_TTL_S = 900.0
 
-# The local embedder's real pins (docs/33) — carried by the v1 stub so the store's
-# INV-MEM-2 marker is correct for when the ops phase wires the live OllamaEmbedder.
+# The local embedder's real pins (docs/33) — used by the live boot and carried by the stub
+# so the store's INV-MEM-2 marker matches either way.
 EMBED_MODEL = "nomic-embed-text"
 EMBED_DIM = 768
+DEFAULT_OLLAMA_HOST = "http://localhost:11434"
+
+
+def _ollama_host() -> str:
+    """The local embed endpoint, read by NAME through A1's env seam — never directly, so
+    the environment boundary stays inside ``charterhouse/env/`` (docs/20)."""
+    try:
+        return env_key_lookup()("OLLAMA_HOST")
+    except Exception:  # noqa: BLE001 — unset is normal; loopback is the documented default
+        return DEFAULT_OLLAMA_HOST
 
 
 class NoTransport:
@@ -99,13 +112,18 @@ class NoEmbedder:
 def build_factory(repo_root: str | Path, data_dir: str | Path,
                   vault_dir: str | Path | None = None, *, profile: str | None = None,
                   embedder=None, embed_model: str = EMBED_MODEL,  # noqa: ANN001
-                  transports: dict | None = None,
+                  transports: dict | None = None, live: bool = False,
                   known_identities: tuple[str, ...] = ()):
     """Wire the fully live factory (the composition root): real Config over the
     committed ``config/``, real Ledger/Registry/Gov/Lifecycle/Security/Memory/
-    Workflow/Conductor — no stubs beyond the two fail-closed transport seams.
-    ``embedder``/``transports`` are injection seams (tests pass fakes; production
-    defaults are the fail-closed ``NoEmbedder``/``NoTransport`` until the ops phase)."""
+    Workflow/Conductor.
+
+    ``embedder``/``transports`` are injection seams (tests pass fakes). ``live=True`` is
+    the PRODUCTION boot: it wires the real HTTP transports and the local Ollama embedder,
+    which is what makes ``advise`` able to call a model at all. The default stays
+    **fail-closed** (``NoEmbedder``/``NoTransport``) precisely so no test can reach the
+    network by omission (INV-TEST-SAFE) — only the ``__main__`` path opts in.
+    """
     repo_root = Path(repo_root)
     data_dir = Path(data_dir)
     vault_dir = Path(vault_dir) if vault_dir is not None else data_dir / "vault"
@@ -113,21 +131,28 @@ def build_factory(repo_root: str | Path, data_dir: str | Path,
     config = Config.load(repo_root / "config", profile)
     ledger = Ledger(data_dir / "ledger")
     registry = Registry(ledger)
-    clock = FactoryClock()  # active-time; the Conductor's deterministic clock
+    # The clock is DERIVED from the ledger like every other piece of state (INV-COND-3):
+    # accumulated active time + the paused flag survive the process boundary, so active-day
+    # guards accumulate and a `pause` is still in force for the next command.
+    clock = clock_from_ledger(ledger)
     gov = Gov(ledger, config, clock=time.time)  # wall clock for token TTL + timestamps
     lifecycle = Lifecycle(ledger, registry, gov, clock)
     security = Security(vault_dir, known_identities=known_identities)
 
     if embedder is None:
-        embedder = NoEmbedder(embed_model)
+        embedder = (OllamaEmbedder(_ollama_host(), embed_model, EMBED_DIM) if live
+                    else NoEmbedder(embed_model))
     store = MemoryStore.open(data_dir / "vectors", embed_model, embedder.dim)
     memory = Memory(store, embedder, ledger, Scanner(known_identities),
                     vault_dir / "memory" / "DOCTRINE.md",
                     weights=RetrievalWeights.from_config(config.memory))
 
     if transports is None:
-        provider_ids = {config.get_model(mid).provider for mid in config.models()}
-        transports = {pid: NoTransport() for pid in provider_ids}
+        if live:
+            transports = build_transports(config, env_key_lookup())
+        else:
+            provider_ids = {config.get_model(mid).provider for mid in config.models()}
+            transports = {pid: NoTransport() for pid in provider_ids}
     router = Router(config, ledger, transports=transports)
 
     workflow = Workflow(build_registry(repo_root / "agents"), router, memory, security,
@@ -169,6 +194,13 @@ def _build_parser() -> argparse.ArgumentParser:
 
     a = venture(sub.add_parser("admit", help="admit to validation (RED — needs --approve)"))
     a.add_argument("--approve", action="store_true")
+
+    ad = venture(sub.add_parser(
+        "advise", help="run the venture's workflow (PRODUCE→CRITIQUE) and record a "
+                       "critic take, so its gate becomes presentable"))
+    ad.add_argument("--pii", action="store_true",
+                    help="the venture's context carries PII: confine BOTH model calls to "
+                         "local models (INV-PII-3)")
 
     ve = venture(sub.add_parser("validate-evidence", help="record an evidence gate"))
     ve.add_argument("--verdict", required=True)
@@ -222,6 +254,11 @@ def _translate(ns: argparse.Namespace):
     if cmd == "frame":
         return "frame", {"venture_id": ns.venture, "brief_ref": ns.brief_ref,
                          "score": ns.score, "quotes": ns.quotes}, None
+    if cmd == "advise":
+        args = {"venture_id": ns.venture}
+        if ns.pii:
+            args["contains_pii"] = True
+        return "advise", args, None  # YELLOW: no token, no --approve
     if cmd == "admit":
         return "admit", {"venture_id": ns.venture}, "admit"
     if cmd == "validate-evidence":
@@ -284,8 +321,32 @@ def _render(result) -> None:  # noqa: ANN001
         _render_killday(data)
     elif isinstance(data, GateBrief):
         _render_gatebrief(data)
+    elif isinstance(data, WorkflowResult):
+        _render_workflow(data)
     else:
         print(f"  {data}")
+
+
+def _render_workflow(result: WorkflowResult) -> None:
+    """An advise run: what was produced, who judged it, and the direction — never the raw
+    Critique (its findings hold the critic's full prose; the artifact + gate brief are
+    where the long form lives)."""
+    print(f"  produced: {result.artifact_ref}  (capability {result.capability}, "
+          f"model {result.model})")
+    print(f"  critic tier {result.critic_tier} via {result.critique.model} "
+          f"— verdict {result.critique.verdict}")
+    if result.critique.steer:
+        print(f"  steer: {_one_line(result.critique.steer)}")
+    else:
+        print("  steer: (none — a tier-3 checklist floor gives findings, not direction)")
+    print(f"  gate brief is now presentable: charterhouse gatebrief "
+          f"--venture {result.artifact_ref.split('/')[1]}")
+
+
+def _one_line(text: str, limit: int = 300) -> str:
+    """Model prose on one bounded line — the full text lives in the vault artifact."""
+    flat = " ".join(str(text).split())
+    return flat if len(flat) <= limit else flat[:limit] + "…"
 
 
 def _render_board(board: Board) -> None:
@@ -311,11 +372,20 @@ def _render_daily(brief: DailyBrief) -> None:
 
 
 def _render_killday(brief: KillDayBrief) -> None:
+    """Worst-first: the calls that end something are read before the routine ones. Each
+    row carries its steer, so kill day is a decision list, not just a status board."""
+    if not brief.rows and not brief.unbriefable:
+        print("  (no active ventures)")
     for gate, rec in brief.rows:
         print(f"  {gate.venture_id}  {gate.codename}  {gate.state.value}  "
               f"→ {rec}  (critic tier {gate.critic.tier})")
+        if gate.steer:
+            print(f"      steer: {_one_line(gate.steer, 200)}")
+        if gate.evidence:
+            print(f"      evidence: {', '.join(gate.evidence)}")
     for vid in brief.unbriefable:
-        print(f"  {vid}  — unbriefable (no critic take yet; named, never dropped)")
+        print(f"  {vid}  — unbriefable (no critic take yet; named, never dropped) "
+              f"— run: charterhouse advise --venture {vid}")
 
 
 def _render_gatebrief(gate: GateBrief) -> None:
@@ -323,6 +393,10 @@ def _render_gatebrief(gate: GateBrief) -> None:
     print(f"  score={gate.score}  active_in_state={gate.active_in_state}")
     print(f"  recommendation: {gate.recommendation}")
     print(f"  critic tier: {gate.critic.tier}  artifact={gate.critic.artifact_ref}")
+    if gate.steer:
+        print(f"  steer: {_one_line(gate.steer)}")
+    else:
+        print("  steer: (none recorded — tier-3 checklist floor, or no advise run yet)")
     if gate.evidence:
         print(f"  evidence: {', '.join(gate.evidence)}")
     if gate.artifacts:
@@ -341,7 +415,10 @@ def main(argv: list[str] | None = None, *, factory=None) -> int:  # noqa: ANN001
             print("error: --data-dir is required (no factory injected)", file=sys.stderr)
             return 2
         load_env_file()  # populate the process environment from .env at startup; no-op if absent
-        factory = build_factory(ns.repo, ns.data_dir, profile=ns.profile)
+        # The real boot is LIVE: real HTTP transports + the local embedder, so `advise`
+        # can actually call a model. Tests never take this path (they inject a factory or
+        # call build_factory directly, where the default stays fail-closed).
+        factory = build_factory(ns.repo, ns.data_dir, profile=ns.profile, live=True)
 
     name, args, scope = _translate(ns)
 

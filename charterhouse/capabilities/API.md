@@ -3,7 +3,10 @@ Owner: A8 Framework Agent   ·   Matches docs/40 §7 exactly (frozen seam)   · 
 
 ## Exposed surface
 
-### `Workflow.run(state: State, venture: Venture) -> WorkflowResult`
+### `Workflow.run(state: State, venture: Venture, *, require=None) -> WorkflowResult`
+*(`require` is the additive docs/43 §7 kwarg, 2026-07-31: a per-run routing constraint that
+overrides the row's own and applies to **both** LLM beats — the caller's way to say
+`contains_pii`, which confines PRODUCE and CRITIQUE alike to local models, INV-PII-3.)*
 - **Preconditions:** `state` has a registered `WorkflowSpec` (the state→workflow table is
   DATA supplied at wiring — S12/A9 own the real table, docs/13); `venture.state == state`
   (a mismatch → `StateMismatch`, nothing runs).
@@ -53,8 +56,18 @@ Owner: A8 Framework Agent   ·   Matches docs/40 §7 exactly (frozen seam)   · 
     answers with the **same model** that produced (self-critique refused) → the
     **deterministic checklist** critique (pure function over the artifact + spec's
     declared outputs; no LLM; always available).
-  Returns `Critique{verdict, findings, tier, model}`; `model` is the answering model or
-  `"deterministic-checklist"`. Never raises for provider reasons — tier 3 is the floor.
+  Returns `Critique{verdict, findings, tier, model, steer}`; `model` is the answering model
+  or `"deterministic-checklist"`. Never raises for provider reasons — tier 3 is the floor.
+- **Additive `require=` (docs/43 §7, 2026-07-31):** the run's routing constraint, passed to
+  `LLMClient.call`. This carries the **INV-PII-3 obligation across the second LLM leg** — the
+  artifact text is what gets critiqued, so a `contains_pii` run must confine the critic to
+  local models too. (Before this seam, PRODUCE honoured the tag and CRITIQUE did not.)
+- **Additive `steer` (docs/43 §7, 2026-07-31):** the critic's concrete
+  what-to-build-instead / how-to-sharpen direction, split from `findings` on a literal
+  `STEER:` label by a plain string partition. A critic that omits the label yields
+  `steer == ""` and the whole answer as findings; **tier 3 never has a steer** (a
+  deterministic checklist gives mechanical findings, not direction). Never synthesised —
+  a blank steer is reported blank, so advice is always distinguishable from a floor.
 - **Determinism:** tier 3 fully deterministic; tiers 1–2 are the LLM path.
 
 ### `WorkflowRegistry(specs: Mapping[State, WorkflowSpec])`  (wiring)

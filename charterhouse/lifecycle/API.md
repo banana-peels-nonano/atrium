@@ -138,6 +138,15 @@ Shared (docs/43 §6, `charterhouse/contracts/`): `State`, `Venture`, `AuthClass`
   real merged Gov is used in tests.
 - **FactoryClock (S5-owned, injectable):** active-day counter with `pause`/`resume`;
   deterministic in tests (docs/55 §2 "Clock").
+- **`clock_from_ledger(ledger) -> FactoryClock` (additive, docs/43 §7, 2026-07-31):** the
+  composition root's boot seed. Replays the ledger for (a) the **paused flag**, from the last
+  `pause`/`resume`, and (b) **accumulated active time**, as the high-water `active_time`
+  already stamped on events. The clock is therefore DERIVED like every other piece of state
+  (INV-COND-3), never carried in a process. Fixes two observed defects: a fresh process always
+  booted un-paused, so `resume` refused ("factory is not paused") and a `pause` never survived
+  its own command; and active time restarted at 0 every command, so every event stamped 0 and
+  no active-day guard could fire. Degrades to `(0, un-paused)` on an empty ledger or a history
+  with no `active_time` — i.e. booting against a pre-existing ledger is safe.
 
 ## Interface stability
 - **Frozen (IF-4, this doc):** `can_transition/transition/slots/clock` signatures per

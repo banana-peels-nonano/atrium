@@ -58,17 +58,22 @@ MODELS: dict = {
                      "good_at": ["reasoning", "critique", "web"]},
 }
 
-# Producer: draft → llama3-local (family "llama"). Critic variants per test:
+# Producer: draft → llama3-local (family "llama"). Critic variants per test.
+# `reasoning` is the judgment-row producer route (conductor STATE_ROLE: CAPTURED/VALIDATING
+# produce there) — cloud llama3-big, so a PII run has somewhere LOCAL to degrade to.
 ROUTES: dict = {
     "draft": {"primary": "llama3-local", "fallback": []},
+    "reasoning": {"primary": "llama3-big", "fallback": []},
     "critic": {"primary": "deepseek-chat-free", "fallback": ["gemini-flash"]},
 }
 ROUTES_SAMEFAM: dict = {  # critic lands the producer's family, different model → tier 2
     "draft": {"primary": "llama3-local", "fallback": []},
+    "reasoning": {"primary": "llama3-big", "fallback": []},
     "critic": {"primary": "llama3-big", "fallback": []},
 }
 ROUTES_SELF: dict = {  # critic lands the EXACT producer model → tier 3 (self-critique)
     "draft": {"primary": "llama3-local", "fallback": []},
+    "reasoning": {"primary": "llama3-local", "fallback": []},
     "critic": {"primary": "llama3-local", "fallback": []},
 }
 

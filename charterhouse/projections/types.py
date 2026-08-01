@@ -58,6 +58,7 @@ class CriticTake:
 
     tier: int
     artifact_ref: str | None = None
+    verdict: str = ""  # additive (docs/43 §7): the critic's own call, e.g. review/flag/pass
 
 
 @dataclass(frozen=True)
@@ -75,6 +76,11 @@ class GateBrief:
     artifacts: tuple[str, ...]
     critic: CriticTake
     recommendation: str
+    # Additive (docs/43 §7): the critic's concrete what-to-build-instead / how-to-sharpen
+    # direction, so a gate is a STEER and not only kill-or-continue. Empty when the take
+    # came from the tier-3 checklist floor or the critic gave no labelled steer — read it
+    # together with `critic.tier`, which says where it came from.
+    steer: str = ""
 
     def __post_init__(self) -> None:
         if self.critic is None:  # INV-COND-2 — no gate presentable without a critic

@@ -25,8 +25,8 @@ after a snapshot/restore, yields the identical value (purity is tested, not asse
 ### `Projections.gate_brief(ledger, venture_id) -> GateBrief`
 - **The fixed schema (INV-COND-2), by construction:**
   `GateBrief{venture_id, codename, state, score, active_in_state, evidence,
-  artifacts, critic: CriticTake, recommendation}` — `critic` is a REQUIRED
-  `CriticTake{tier, artifact_ref}` drawn from the venture's latest
+  artifacts, critic: CriticTake, recommendation, steer}` — `critic` is a REQUIRED
+  `CriticTake{tier, artifact_ref, verdict}` drawn from the venture's latest
   `artifact_produced`/`gate_decision`; **assembly raises `NoCriticForGate` when no
   critic take exists** — no gate is presentable without one. `recommendation` is the
   mechanical ADVANCE/HOLD/KILL advisory derived from ledger facts only (evidence
@@ -34,9 +34,11 @@ after a snapshot/restore, yields the identical value (purity is tested, not asse
 
 ### `Projections.killday_brief(ledger) -> KillDayBrief`
 - Every ACTIVE venture (docs/05: kill-day walks the whole factory) as a GateBrief +
-  its mechanical recommendation; ventures with no critic take yet are listed in a
-  separate `unbriefable` tuple (named, never silently dropped — fail loud, and the
-  gate command will refuse them anyway).
+  its mechanical recommendation, **ordered worst-first — KILL → HOLD → ADVANCE** (stable
+  within a band, so the board's deterministic order holds): kill day exists to make ending
+  things easy, so a KILL advisory never sits below a routine ADVANCE. Ventures with no
+  critic take yet are listed in a separate `unbriefable` tuple (named, never silently
+  dropped — fail loud, and the gate command will refuse them anyway).
 
 ### `Projections.calibration(ledger) -> CalibrationReport`
 - Overrides vs outcomes (docs/41 §3): every `override`/`score_override` event paired
@@ -63,6 +65,8 @@ refusal type).
 - **Frozen (docs/40 §9):** the six function signatures + the `GateBrief` schema
   (INV-COND-2) + purity semantics. Breaking change = ICR (docs/43 §4).
 - **Additive v1 notes (docs/43 §7):** extra fields on `Metrics`/`BoardRow.flags`;
-  richer `evidence`/`artifacts` detail on `GateBrief`.
+  richer `evidence`/`artifacts` detail on `GateBrief`; `GateBrief.steer` +
+  `CriticTake.verdict` (2026-07-31) — both default-empty, so every prior consumer and every
+  ledger written before the fields existed still reads correctly.
 - **Internal/free to change:** fold implementations, recommendation heuristics
   (advisory), row ordering beyond the documented sorts.

@@ -55,6 +55,7 @@ class Conductor:
             "send.stage": self._send_stage,
             "gate": self._gate,
             "advance.express": self._advance_express,
+            "advise": self._advise,
             "shape": self._shape,
             "build": self._build,
             "recruit.partners": self._recruit_partners,
@@ -306,8 +307,26 @@ class Conductor:
 
     def _run_workflow(self, args, state: State):  # noqa: ANN001
         v = self._venture(args)
-        result = self._workflow.run(state, v)
+        result = self._workflow.run(state, v, require=self._require(args))
         return result.event_id, result
+
+    @staticmethod
+    def _require(args):  # noqa: ANN001
+        """The per-run routing constraint. ``contains_pii`` confines BOTH LLM beats to
+        local models (INV-PII-3); absent, the row's own constraint applies."""
+        if not args.get("contains_pii"):
+            return None
+        from charterhouse.router.types import Require
+
+        return Require(contains_pii=True)
+
+    def _advise(self, args, token, action):  # noqa: ANN001
+        """Run the venture's CURRENT-state workflow (PRODUCE→CRITIQUE) and record the
+        critic take, so a gate becomes presentable (INV-COND-2). YELLOW, not RED: this is
+        an AI opinion, not a founder decision — it moves no venture (the CHECKPOINT event
+        is state-neutral by construction) and crosses no gate. A state with no workflow row
+        surfaces S10's ``UnknownWorkflow`` unchanged (fail closed)."""
+        return self._run_workflow(args, self._venture(args).state)
 
     def _shape(self, args, token, action):  # noqa: ANN001
         return self._run_workflow(args, State.SHAPING)

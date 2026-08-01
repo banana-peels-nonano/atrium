@@ -43,13 +43,24 @@ def _critic_take(events: list[Event], venture_id: str) -> CriticTake:
     for e in reversed(events):
         if e.type is EventType.ARTIFACT_PRODUCED:
             return CriticTake(tier=int(e.payload["critic_tier"]),
-                              artifact_ref=e.payload.get("artifact_ref"))
+                              artifact_ref=e.payload.get("artifact_ref"),
+                              verdict=str(e.payload.get("critic_verdict") or ""))
     for e in reversed(events):
         if e.type is EventType.GATE_DECISION and "critic_tier" in e.payload:
             return CriticTake(tier=int(e.payload["critic_tier"]), artifact_ref=None)
     raise NoCriticForGate(
         f"no critic take on record for venture {venture_id!r} — no gate is "
         "presentable without one (INV-COND-2)")
+
+
+def _steer(events: list[Event]) -> str:
+    """The latest recorded steer (additive ``artifact_produced`` field). Absent on older
+    events and empty at the tier-3 floor — a blank steer is reported as blank, never
+    back-filled from findings (the founder must be able to tell advice from a floor)."""
+    for e in reversed(events):
+        if e.type is EventType.ARTIFACT_PRODUCED:
+            return str(e.payload.get("steer") or "")
+    return ""
 
 
 def _evidence_facts(events: list[Event]) -> tuple[str, ...]:
@@ -107,6 +118,7 @@ def gate_brief(ledger: Ledger, venture_id: str) -> GateBrief:
         artifacts=artifacts,
         critic=critic,
         recommendation=_recommendation(events),
+        steer=_steer(events),
     )
 
 
@@ -139,9 +151,16 @@ def daily_brief(ledger: Ledger, day: str | None = None) -> DailyBrief:
                       pending_sends=tuple(sorted(sends.items())), board=board)
 
 
+# Kill-day ordering: the decisions that END something come first — kill day exists to make
+# killing easy, so a KILL advisory must never sit below a routine ADVANCE.
+_REC_ORDER = {"KILL": 0, "HOLD": 1, "ADVANCE": 2}
+
+
 def killday_brief(ledger: Ledger) -> KillDayBrief:
-    """Every ACTIVE venture as (GateBrief, recommendation); unbriefable ventures
-    named, never dropped (docs/05 kill-day)."""
+    """Every ACTIVE venture as (GateBrief, recommendation), **ordered worst-first** so the
+    hardest calls are read first; ventures with no critic take are named, never dropped
+    (docs/05 kill-day — the honesty property: a brief that hides what it cannot judge is
+    worse than one that admits it)."""
     rows = []
     unbriefable = []
     for row in pipeline(ledger).rows:
@@ -153,4 +172,6 @@ def killday_brief(ledger: Ledger) -> KillDayBrief:
             unbriefable.append(row.venture_id)
             continue
         rows.append((brief, brief.recommendation))
+    # Stable sort: within a recommendation the board's own (deterministic) order holds.
+    rows.sort(key=lambda pair: _REC_ORDER.get(pair[1], len(_REC_ORDER)))
     return KillDayBrief(rows=tuple(rows), unbriefable=tuple(unbriefable))

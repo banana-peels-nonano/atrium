@@ -19,7 +19,10 @@ _GREEN = (
     "capture", "frame", "validate.evidence", "shape", "recruit.partners", "salvage",
     "consolidate", "calibrate", "pause", "resume", "pipeline", "brief", "killday", "gatebrief",
 )
-_YELLOW = ("spend.meter", "validate.experiment", "build")
+# `advise` runs a capability workflow (PRODUCE→CRITIQUE) and so meters model spend, exactly
+# like `build` — but it is an AI opinion, never a founder decision: it moves no venture and
+# crosses no gate, so it stays YELLOW and the RED set (the founder's five levers) is unchanged.
+_YELLOW = ("spend.meter", "validate.experiment", "build", "advise")
 _RED = (
     "admit", "gate", "advance.express", "spend.envelope", "send.stage", "launch",
     "pivot", "graduate", "kill",

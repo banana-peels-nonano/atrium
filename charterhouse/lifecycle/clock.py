@@ -11,9 +11,12 @@ Determinism (docs/61 §INV-DET): stdlib only; no LLM.
 
 from __future__ import annotations
 
+from charterhouse.contracts.events import EventType
 from charterhouse.contracts.state import State, Venture
 
 from charterhouse.lifecycle.types import ActiveTime, LifecycleLimits
+
+__all__ = ["FactoryClock", "clock_from_ledger", "derive_active_time"]
 
 
 class FactoryClock:
@@ -41,6 +44,40 @@ class FactoryClock:
 
     def resume(self) -> None:
         self._paused = False
+
+
+def clock_from_ledger(ledger) -> FactoryClock:  # noqa: ANN001 — Ledger (IF-1)
+    """Reconstruct the factory clock at boot from the ledger — the composition root's
+    seed (INV-COND-3: the ledger is the only memory, so the clock is derived like every
+    other piece of state, never carried in a process).
+
+    Two facts are recovered by replay:
+
+    - **the paused flag**, from the last ``pause``/``resume`` event. Without this a fresh
+      process always booted un-paused, so ``resume`` refused ("factory is not paused")
+      and a ``pause`` never survived the command that issued it.
+    - **accumulated active time**, as the high-water mark of the ``active_time`` already
+      stamped on the ledger. Without this every command restarted the counter at 0, so
+      every event stamped 0 and no active-day guard could ever fire.
+
+    Degrades to ``(0, un-paused)`` on an empty ledger or a history whose events carry no
+    ``active_time`` — which is every event written before this seam existed, so booting
+    against an existing ledger is safe.
+    """
+    paused = False
+    high_water = 0
+    for event in ledger.read():
+        if event.type is EventType.PAUSE:
+            paused = True
+        elif event.type is EventType.RESUME:
+            paused = False
+        stamped = event.active_time
+        if stamped is not None and int(stamped) > high_water:
+            high_water = int(stamped)
+    clock = FactoryClock(start=high_water)
+    if paused:
+        clock.pause()
+    return clock
 
 
 def derive_active_time(

@@ -20,6 +20,7 @@ env read (vault dir arrives from wiring — A1's ``EnvContext`` at composition).
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 from charterhouse.contracts.events import Event
@@ -69,10 +70,17 @@ class Workflow:
 
     # --- the frozen surface (IF-5) ------------------------------------------------------
 
-    def run(self, state: State, venture: Venture) -> WorkflowResult:
+    def run(self, state: State, venture: Venture, *,
+            require=None) -> WorkflowResult:  # noqa: ANN001 — Require (IF-2)
         """All four machine beats in order (GATE is human). Fail closed at every step;
-        a model failure never corrupts state (INV-WF-1)."""
+        a model failure never corrupts state (INV-WF-1).
+
+        ``require`` (additive, docs/43 §7) overrides the row's routing constraint for THIS
+        run and applies to BOTH LLM beats — the caller's way to say ``contains_pii``, which
+        confines produce AND critique to local models (INV-PII-3)."""
         spec = self._registry.get(state)
+        if require is not None:
+            spec = replace(spec, require=require)  # per-run override; the row is frozen
         if venture.state is not state:
             raise StateMismatch(
                 f"venture {venture.id!r} is in {venture.state.value}, not "
@@ -115,10 +123,13 @@ class Workflow:
             "mutated (INV-WF-1)") from last
 
     def critique_beat(self, cap_input: CapInput, artifact: Artifact) -> Critique:
-        """CRITIQUE via the INV-WF-2 ladder — never fails the run (tier 3 floor)."""
+        """CRITIQUE via the INV-WF-2 ladder — never fails the run (tier 3 floor). The
+        row's ``require`` rides along, so a ``contains_pii`` run keeps the critic local
+        too (INV-PII-3 across both LLM legs)."""
         critic = Critic(self._llm, retries=max(1, cap_input.spec.retries),
                         family_of=self._family_of)
-        return critic.critique(artifact, cap_input.spec.capability)
+        return critic.critique(artifact, cap_input.spec.capability,
+                               require=cap_input.spec.require)
 
     def checkpoint(self, spec: WorkflowSpec, venture: Venture, artifact: Artifact,
                    critique: Critique) -> WorkflowResult:

@@ -59,11 +59,32 @@ def checklist(artifact: Artifact, spec: CapabilitySpec | None) -> Critique:
     )
 
 
+STEER_LABEL = "STEER:"
+
+
+def split_steer(text: str) -> tuple[str, str]:
+    """Split a critic answer into ``(findings_text, steer)`` on the ``STEER:`` label.
+
+    A plain string partition, never a parse: a critic that ignores the label yields
+    ``(whole_text, "")`` — the brief then shows findings with no steer, which is the honest
+    outcome. Never invents a steer.
+    """
+    head, label, tail = text.partition(STEER_LABEL)
+    if not label:
+        return text.strip(), ""
+    return head.strip(), tail.strip()
+
+
 def _critique_messages(artifact: Artifact) -> list[dict]:
     return [
         {"role": "system", "content":
             "You are the adversarial Critic of Charter House. Attack the artifact: "
             "name unstated assumptions, missing declared outputs, and evidence gaps. "
+            "Then give the founder a direction, not just a verdict.\n"
+            "Answer in exactly two labelled parts:\n"
+            "FINDINGS: what is wrong or unevidenced, most damaging first.\n"
+            f"{STEER_LABEL} the single most useful change — what to build or test "
+            "instead, or how to sharpen this idea — grounded in the findings above.\n"
             "You have no authority and are stateless — critique only."},
         {"role": "user", "content":
             f"Capability: {artifact.capability} (role {artifact.role}, "
@@ -85,14 +106,22 @@ class Critic:
         # fallback to the canonical contracts derivation (never a local parse).
         self._family_of = family_of if family_of is not None else default_family
 
-    def critique(self, artifact: Artifact,
-                 spec: CapabilitySpec | None = None) -> Critique:
+    def critique(self, artifact: Artifact, spec: CapabilitySpec | None = None,
+                 *, require=None) -> Critique:  # noqa: ANN001 — Require (IF-2)
         """The ladder above. Never raises for provider reasons — tier 3 is the floor.
-        ``spec`` (additive, docs/43 §7) feeds the checklist's declared-outputs rules."""
+        ``spec`` (additive, docs/43 §7) feeds the checklist's declared-outputs rules.
+
+        ``require`` (additive, docs/43 §7) is the run's routing constraint and carries the
+        **INV-PII-3 obligation across the second LLM leg**: the artifact text is what gets
+        critiqued, so a ``contains_pii`` run must confine the critic to local models too.
+        Before this seam existed PRODUCE honoured the tag and CRITIQUE did not, which
+        would have let tagged text reach a cloud critic.
+        """
         response = None
         for _attempt in range(self._retries):
             try:
-                response = self._llm.call(self._role, _critique_messages(artifact))
+                response = self._llm.call(self._role, _critique_messages(artifact),
+                                          require=require)
                 break
             except RouterError:
                 continue
@@ -101,5 +130,6 @@ class Critic:
             return checklist(artifact, spec)
         tier = (1 if self._family_of(response.model) != self._family_of(artifact.model)
                 else 2)
-        return Critique(verdict="review", findings=(response.text,), tier=tier,
-                        model=response.model)
+        findings_text, steer = split_steer(response.text)
+        return Critique(verdict="review", findings=(findings_text,), tier=tier,
+                        model=response.model, steer=steer)

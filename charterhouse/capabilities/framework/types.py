@@ -81,12 +81,20 @@ class Critique:
     """The attached Critic take (INV-WF-3). ``tier`` records where on the INV-WF-2
     ladder this critique came from (1 diff-family · 2 same-family-diff-model ·
     3 deterministic checklist); ``model`` is the critic model or
-    ``"deterministic-checklist"``."""
+    ``"deterministic-checklist"``.
+
+    ``steer`` is the **additive** docs/43 §7 field: the critic's concrete
+    what-to-build-instead / how-to-sharpen recommendation, split from the findings so the
+    gate brief can carry direction, not just kill-or-continue. It is empty at tier 3 (the
+    deterministic checklist produces mechanical findings and never a steer) and empty when
+    a critic answers without the labelled section — an honest blank, never a synthesised
+    one, so the founder can always tell advice from a floor."""
 
     verdict: str
     findings: tuple[str, ...]
     tier: int
     model: str
+    steer: str = ""
 
 
 class FrameworkError(Exception):

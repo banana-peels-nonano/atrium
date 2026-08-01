@@ -63,7 +63,7 @@ Grouped; payload fields listed. Adding a type is a versioned, additive change (`
 - `alumni_transition` — {to: SCALING|HARVEST|EXITED}
 - `consolidate` — {merged, retired, promoted} *(reversible view; never edits ledger; INV-MEM-3)*
 - `lesson_written` — {lesson_id, tags, confidence}
-- `artifact_produced` — {artifact_ref, capability, critic_tier} *(a workflow CHECKPOINT's artifact record; state-neutral — never carries from/to_state; ADDITIVE 2026-07-19 per §2's evolution rule, with S12's real state→workflow table)*
+- `artifact_produced` — {artifact_ref, capability, critic_tier, critic_verdict, critic_model, steer} *(a workflow CHECKPOINT's artifact record; state-neutral — never carries from/to_state; ADDITIVE 2026-07-19 per §2's evolution rule, with S12's real state→workflow table. `critic_verdict`/`critic_model`/`steer` are a further ADDITIVE field set, 2026-07-31 (feat/ai-verdict): they carry the critic's own call and its concrete what-to-build-instead direction onto the ledger, so a Gate Brief can replay a STEER and its provenance. Readers of the earlier shape are unaffected — absent fields read as empty.)*
 
 ### System & telemetry
 - `pause` / `resume` — {reason}  *(freezes/restarts active-time; INV-SM-3)*
